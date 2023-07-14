@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32421.90
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MazeMover", "MazeMover\MazeMover.csproj", "{988318E9-027F-4EDF-8914-4ED15801E820}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{988318E9-027F-4EDF-8914-4ED15801E820}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{988318E9-027F-4EDF-8914-4ED15801E820}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{988318E9-027F-4EDF-8914-4ED15801E820}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{988318E9-027F-4EDF-8914-4ED15801E820}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {56D7564A-11E7-42EC-97E6-D9F06C225934}
+	EndGlobalSection
+EndGlobal
