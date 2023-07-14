@@ -17,9 +17,17 @@ namespace MazeMover
             Console.OutputEncoding = System.Text.Encoding.Unicode;
 
 
-            Maze maze = new Maze(100,100);
-            maze.GenerateMaze(10);
+            Maze maze = new Maze(100,50);
+            maze.GenerateMaze(1, false);
             maze.Draw(false);
+            Console.WriteLine();
+            var input = Console.ReadLine();
+            if (input == "solution")
+            {
+                maze = new Maze(100, 50);
+                maze.GenerateMaze(1, true);
+                maze.Draw(false);
+            }
         }
     }
     public class MazeConnection //Require class for nullable type
@@ -77,16 +85,16 @@ namespace MazeMover
             switch (direction)
             {
                 case Direction.Left:
-                    walls.RemoveAll(m => m.point1 == bottomleftcorner && m.point2 == topleftcorner); 
+                    walls.Remove(walls.FirstOrDefault(m => m.point1 == bottomleftcorner && m.point2 == topleftcorner)); 
                     break;
                 case Direction.Up:
-                    walls.RemoveAll(m => m.point1 == topleftcorner && m.point2 == toprightcorner); 
+                    walls.Remove(walls.FirstOrDefault(m => m.point1 == topleftcorner && m.point2 == toprightcorner)); 
                     break;
                 case Direction.Right:
-                    walls.RemoveAll(m=>m.point1 == bottomrightcorner && m.point2 == toprightcorner);
+                    walls.Remove(walls.FirstOrDefault(m=>m.point1 == bottomrightcorner && m.point2 == toprightcorner));
                     break;
                 case Direction.Down:
-                    walls.RemoveAll(m=>m.point1 == bottomleftcorner && m.point2 == bottomrightcorner);
+                    walls.Remove(walls.FirstOrDefault(m=>m.point1 == bottomleftcorner && m.point2 == bottomrightcorner));
                     break;
             }
         }
@@ -96,12 +104,13 @@ namespace MazeMover
             this.height = height;
             claimedcells = new bool[width*height];
         }
-        public void GenerateMaze(int genseed)
+        public void GenerateMaze(int genseed, bool showsolution)
         {
             //Begin by generating correct path, starting at 0,0
             bool mazesolved = false;
             Random r = new Random(genseed);
-            Direction lastdirection = Direction.None;
+
+            List<Direction> travelledDirections = new List<Direction>();
 
             int cellidx = 0;
             //Draw first cell
@@ -110,9 +119,11 @@ namespace MazeMover
             CreateWall(Direction.Right, cellidx);
 
             int endmazeidx = 0;
+            int searchidx = -1;
 
-            for (int i = 0; i < width * height; ++i)
+            while(searchidx < width * height)
             {
+                ++searchidx;
                 //Check to see if there is an available next path
                 if (((cellidx + 1) % width == 0 || claimedcells[cellidx + 1]) //Is there a claimed cell to the right? Or on right edge
                   && (cellidx == 0 || (cellidx - 1) % width == width - 1 || claimedcells[cellidx - 1]) //Is there a claimed cell to the left? Or on the left edge
@@ -120,13 +131,62 @@ namespace MazeMover
                   && (cellidx <= width || claimedcells[cellidx - width]) //Is there a cell to the bottom? Or on the bottom edge
                   ) //No possible next step?
                 {
-                    return;
-                    break;
+                    //return;
+                    searchidx--; //Allow for an extra search
+                    claimedcells[cellidx] = true; //Make sure we dont get here again
+                    switch (travelledDirections.Last())
+                    {
+                        case Direction.Left:
+                            if (showsolution) 
+                            {
+                                CreateWall(Direction.Right, cellidx);
+                                RemoveWall(Direction.Left, cellidx);
+                                RemoveWall(Direction.Up, cellidx);
+                                RemoveWall(Direction.Down, cellidx);
+                            }
+                            cellidx++;
+                            break;
+                        case Direction.Up:
+                            if (showsolution) 
+                            {
+                                CreateWall(Direction.Down, cellidx);
+                                RemoveWall(Direction.Left, cellidx);
+                                RemoveWall(Direction.Up, cellidx);
+                                RemoveWall(Direction.Right, cellidx);
+                            }
+                            cellidx -= width;
+                            break;
+                        case Direction.Right:
+                            if (showsolution)
+                            {
+                                CreateWall(Direction.Left, cellidx);
+                                RemoveWall(Direction.Right, cellidx);
+                                RemoveWall(Direction.Up, cellidx);
+                                RemoveWall(Direction.Down, cellidx);
+                            }
+                            cellidx--;
+                            break;
+                        case Direction.Down:
+                            if (showsolution) 
+                            {
+                                CreateWall(Direction.Up, cellidx);
+                                RemoveWall(Direction.Left, cellidx);
+                                RemoveWall(Direction.Right, cellidx);
+                                RemoveWall(Direction.Down, cellidx);
+                            }
+                            cellidx += width;
+                            break;
+                        case Direction.None:
+                            throw new Exception("How did we get here");
+                    }
+                    travelledDirections.RemoveAt(travelledDirections.Count() - 1);
+                    //Draw(false);
+                    continue;
                 }
                 Direction nextdirection = Direction.None;
                 do
                 {
-                    var random = r.Next(0, 6);
+                    var random = r.Next(0, 4);
                     switch (random)
                     {
                         case 0:
@@ -140,10 +200,6 @@ namespace MazeMover
                             break;
                         case 3:
                             nextdirection = Direction.Right;
-                            break;
-                        case 4:
-                        case 5:
-                            nextdirection = lastdirection; //Weight more heavily to travelling in the same direction
                             break;
                         default:
                             nextdirection = Direction.None;
@@ -176,26 +232,16 @@ namespace MazeMover
                         break;
                     case Direction.Right:
                         nextcell = cellidx + 1;
-                        //Our right is the nextcells left, so remove the wall allowing us to travel between the cells
                         RemoveWall(Direction.Left, nextcell);
-
-                        //Create walls on the up/down
                         CreateWall(Direction.Up, nextcell);
                         CreateWall(Direction.Down, nextcell);
-
-                        //The nextcells right creation will create a dead end
                         CreateWall(Direction.Right, nextcell);
                         break;
                     case Direction.Down:
                         nextcell = cellidx - width;
-                        //Our down is the nextcells up, so remove the wall allowing us to travel between the cells
                         RemoveWall(Direction.Up, nextcell);
-
-                        //Add walls on the left and right
                         CreateWall(Direction.Left, nextcell);
                         CreateWall(Direction.Right, nextcell);
-
-                        //The nextcells down will be the last wall, creating a dead end that can be changed later if another path is added
                         CreateWall(Direction.Down, nextcell);
                         break;
                     case Direction.None:
@@ -203,6 +249,7 @@ namespace MazeMover
                 } //Find position of nextcell and empty out the position of the new wall
                 claimedcells[cellidx] = true;
                 cellidx = nextcell;
+                travelledDirections.Add(nextdirection);
                 //Console.WriteLine();
                 //Console.WriteLine("Iteration: " + (i+1).ToString() + " Moved: " + nextdirection.ToString());
                 //Draw();
@@ -212,17 +259,18 @@ namespace MazeMover
                 {
                     RemoveWall(nextdirection, cellidx); //Create an end to the maze
                     endmazeidx = cellidx;
+                    claimedcells[endmazeidx] = true;
                     break;
                 }
             }
+            if (showsolution)
+            {
+                return;
+            }
             //return;
             //Generate incorrect paths
-            for (int i = 0; i < width*height; ++i)
+            for (int i = 0; i < ((width+height) * (width+height))/2; ++i)
             {
-                if (i == 77)
-                {
-
-                }
                 do {
                     cellidx = r.Next(width * height);
                 } while (!claimedcells[cellidx] && cellidx != endmazeidx && cellidx != 0);
@@ -242,7 +290,7 @@ namespace MazeMover
                     Direction nextdirection = Direction.None;
                     do
                     {
-                        var random = r.Next(0, 6);
+                        var random = r.Next(0, 4);
                         switch (random)
                         {
                             case 0:
@@ -256,10 +304,6 @@ namespace MazeMover
                                 break;
                             case 3:
                                 nextdirection = Direction.Right;
-                                break;
-                            case 4:
-                            case 5:
-                                nextdirection = lastdirection; //Weight more heavily to travelling in the same direction
                                 break;
                             default:
                                 nextdirection = Direction.None;
@@ -292,26 +336,16 @@ namespace MazeMover
                             break;
                         case Direction.Right:
                             nextcell = cellidx + 1;
-                            //Our right is the nextcells left, so remove the wall allowing us to travel between the cells
                             RemoveWall(Direction.Left, nextcell);
-
-                            //Create walls on the up/down
                             CreateWall(Direction.Up, nextcell);
                             CreateWall(Direction.Down, nextcell);
-
-                            //The nextcells right creation will create a dead end
                             CreateWall(Direction.Right, nextcell);
                             break;
                         case Direction.Down:
                             nextcell = cellidx - width;
-                            //Our down is the nextcells up, so remove the wall allowing us to travel between the cells
                             RemoveWall(Direction.Up, nextcell);
-
-                            //Add walls on the left and right
                             CreateWall(Direction.Left, nextcell);
                             CreateWall(Direction.Right, nextcell);
-
-                            //The nextcells down will be the last wall, creating a dead end that can be changed later if another path is added
                             CreateWall(Direction.Down, nextcell);
                             break;
                         case Direction.None:
