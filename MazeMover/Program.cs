@@ -17,16 +17,15 @@ namespace MazeMover
             Console.OutputEncoding = System.Text.Encoding.Unicode;
 
 
-            Maze maze = new Maze(100,50);
-            maze.GenerateMaze(1, false);
-            maze.Draw(false);
-            Console.WriteLine();
+            Maze maze = new Maze(10,10);
+            maze.GenerateMaze(10, false);
+            maze.Draw();
             var input = Console.ReadLine();
             if (input == "solution")
             {
-                maze = new Maze(100, 50);
-                maze.GenerateMaze(1, true);
-                maze.Draw(false);
+                maze = new Maze(10, 10);
+                maze.GenerateMaze(10, true);
+                maze.Draw();
             }
         }
     }
@@ -50,59 +49,17 @@ namespace MazeMover
         //Enter at 0,0
         //Exit at width,height (top right)
 
-        public List<MazeConnection> walls = new List<MazeConnection>();
+        //public List<MazeConnection> walls = new List<MazeConnection>();
         public bool[] claimedcells;
-        public void CreateWall(Direction direction, int position)
-        {
-            int bottomleftcorner = position + position / width;
-            int topleftcorner = bottomleftcorner + width + 1;
-            int toprightcorner = topleftcorner + 1;
-            int bottomrightcorner = toprightcorner - width - 1;
-
-            switch (direction)
-            {
-                case Direction.Left:
-                    walls.Add(new MazeConnection(bottomleftcorner, topleftcorner));
-                    break;
-                case Direction.Up:
-                    walls.Add(new MazeConnection(topleftcorner, toprightcorner));
-                    break;
-                case Direction.Right:
-                    walls.Add(new MazeConnection(bottomrightcorner, toprightcorner));
-                    break;
-                case Direction.Down:
-                    walls.Add(new MazeConnection(bottomleftcorner, bottomrightcorner));
-                    break;
-            }
-        }
-        public void RemoveWall(Direction direction, int position)
-        {
-            int bottomleftcorner = position + position / width;
-            int topleftcorner = bottomleftcorner + width + 1;
-            int toprightcorner = topleftcorner + 1;
-            int bottomrightcorner = toprightcorner - width - 1;
-
-            switch (direction)
-            {
-                case Direction.Left:
-                    walls.Remove(walls.FirstOrDefault(m => m.point1 == bottomleftcorner && m.point2 == topleftcorner)); 
-                    break;
-                case Direction.Up:
-                    walls.Remove(walls.FirstOrDefault(m => m.point1 == topleftcorner && m.point2 == toprightcorner)); 
-                    break;
-                case Direction.Right:
-                    walls.Remove(walls.FirstOrDefault(m=>m.point1 == bottomrightcorner && m.point2 == toprightcorner));
-                    break;
-                case Direction.Down:
-                    walls.Remove(walls.FirstOrDefault(m=>m.point1 == bottomleftcorner && m.point2 == bottomrightcorner));
-                    break;
-            }
-        }
+        public bool[] mainpathcells;
+        public bool[] drawablecells;
         public Maze(int width, int height)
         {
             this.width = width;
             this.height = height;
-            claimedcells = new bool[width*height];
+            claimedcells = new bool[width * height];
+            mainpathcells = new bool[width * height];
+            drawablecells = new bool[width * height];
         }
         public void GenerateMaze(int genseed, bool showsolution)
         {
@@ -114,9 +71,9 @@ namespace MazeMover
 
             int cellidx = 0;
             //Draw first cell
-            CreateWall(Direction.Left, cellidx);
-            CreateWall(Direction.Up, cellidx);
-            CreateWall(Direction.Right, cellidx);
+            claimedcells[0] = true;
+            drawablecells[0] = true;
+            mainpathcells[0] = true;
 
             int endmazeidx = 0;
             int searchidx = -1;
@@ -134,53 +91,28 @@ namespace MazeMover
                     //return;
                     searchidx--; //Allow for an extra search
                     claimedcells[cellidx] = true; //Make sure we dont get here again
+                    mainpathcells[cellidx] = false;
+                    drawablecells[cellidx] = false;
                     switch (travelledDirections.Last())
                     {
                         case Direction.Left:
-                            if (showsolution) 
-                            {
-                                CreateWall(Direction.Right, cellidx);
-                                RemoveWall(Direction.Left, cellidx);
-                                RemoveWall(Direction.Up, cellidx);
-                                RemoveWall(Direction.Down, cellidx);
-                            }
                             cellidx++;
                             break;
                         case Direction.Up:
-                            if (showsolution) 
-                            {
-                                CreateWall(Direction.Down, cellidx);
-                                RemoveWall(Direction.Left, cellidx);
-                                RemoveWall(Direction.Up, cellidx);
-                                RemoveWall(Direction.Right, cellidx);
-                            }
                             cellidx -= width;
                             break;
                         case Direction.Right:
-                            if (showsolution)
-                            {
-                                CreateWall(Direction.Left, cellidx);
-                                RemoveWall(Direction.Right, cellidx);
-                                RemoveWall(Direction.Up, cellidx);
-                                RemoveWall(Direction.Down, cellidx);
-                            }
                             cellidx--;
                             break;
                         case Direction.Down:
-                            if (showsolution) 
-                            {
-                                CreateWall(Direction.Up, cellidx);
-                                RemoveWall(Direction.Left, cellidx);
-                                RemoveWall(Direction.Right, cellidx);
-                                RemoveWall(Direction.Down, cellidx);
-                            }
                             cellidx += width;
                             break;
                         case Direction.None:
                             throw new Exception("How did we get here");
                     }
+
                     travelledDirections.RemoveAt(travelledDirections.Count() - 1);
-                    //Draw(false);
+                    Draw();
                     continue;
                 }
                 Direction nextdirection = Direction.None;
@@ -218,36 +150,22 @@ namespace MazeMover
                 {
                     case Direction.Left:
                         nextcell = cellidx - 1;
-                        RemoveWall(Direction.Right, nextcell);
-                        CreateWall(Direction.Left, nextcell);
-                        CreateWall(Direction.Up, nextcell);
-                        CreateWall(Direction.Down, nextcell);
                         break;
                     case Direction.Up:
                         nextcell = cellidx + width;
-                        RemoveWall(Direction.Down, nextcell);
-                        CreateWall(Direction.Left, nextcell);
-                        CreateWall(Direction.Up, nextcell);
-                        CreateWall(Direction.Right, nextcell);
                         break;
                     case Direction.Right:
                         nextcell = cellidx + 1;
-                        RemoveWall(Direction.Left, nextcell);
-                        CreateWall(Direction.Up, nextcell);
-                        CreateWall(Direction.Down, nextcell);
-                        CreateWall(Direction.Right, nextcell);
                         break;
                     case Direction.Down:
                         nextcell = cellidx - width;
-                        RemoveWall(Direction.Up, nextcell);
-                        CreateWall(Direction.Left, nextcell);
-                        CreateWall(Direction.Right, nextcell);
-                        CreateWall(Direction.Down, nextcell);
                         break;
                     case Direction.None:
                         break;
                 } //Find position of nextcell and empty out the position of the new wall
                 claimedcells[cellidx] = true;
+                mainpathcells[cellidx] = true;
+                drawablecells[cellidx] = true;
                 cellidx = nextcell;
                 travelledDirections.Add(nextdirection);
                 //Console.WriteLine();
@@ -257,9 +175,10 @@ namespace MazeMover
                 if (((cellidx % width) == width - 1 && nextdirection == Direction.Right)    //Have we hit the right wall?
                     || ((cellidx / width) == height - 1 && nextdirection == Direction.Up))
                 {
-                    RemoveWall(nextdirection, cellidx); //Create an end to the maze
                     endmazeidx = cellidx;
-                    claimedcells[endmazeidx] = true;
+                    claimedcells[cellidx] = true;
+                    mainpathcells[cellidx] = true;
+                    drawablecells[cellidx] = true; 
                     break;
                 }
             }
@@ -267,7 +186,7 @@ namespace MazeMover
             {
                 return;
             }
-            //return;
+            return;
             //Generate incorrect paths
             for (int i = 0; i < ((width+height) * (width+height))/2; ++i)
             {
@@ -322,36 +241,21 @@ namespace MazeMover
                     {
                         case Direction.Left:
                             nextcell = cellidx - 1;
-                            RemoveWall(Direction.Right, nextcell);
-                            CreateWall(Direction.Left, nextcell);
-                            CreateWall(Direction.Up, nextcell);
-                            CreateWall(Direction.Down, nextcell);
                             break;
                         case Direction.Up:
                             nextcell = cellidx + width;
-                            RemoveWall(Direction.Down, nextcell);
-                            CreateWall(Direction.Left, nextcell);
-                            CreateWall(Direction.Up, nextcell);
-                            CreateWall(Direction.Right, nextcell);
                             break;
                         case Direction.Right:
                             nextcell = cellidx + 1;
-                            RemoveWall(Direction.Left, nextcell);
-                            CreateWall(Direction.Up, nextcell);
-                            CreateWall(Direction.Down, nextcell);
-                            CreateWall(Direction.Right, nextcell);
                             break;
                         case Direction.Down:
                             nextcell = cellidx - width;
-                            RemoveWall(Direction.Up, nextcell);
-                            CreateWall(Direction.Left, nextcell);
-                            CreateWall(Direction.Right, nextcell);
-                            CreateWall(Direction.Down, nextcell);
                             break;
                         case Direction.None:
                             break;
                     } //Find position of nextcell and empty out the position of the new wall
                     claimedcells[cellidx] = true;
+                    drawablecells[cellidx] = true; //Dont do main path
                     cellidx = nextcell;
                     if (r.Next(0,10) == 5) //Randomly create dead ends
                     {
@@ -379,155 +283,30 @@ namespace MazeMover
             throw new Exception("Direction uncharted");
             return false;
         }
-            public void Draw(bool debug)
+        public void Draw()
         {
-            List<MazeConnection> distinctwalls = walls.Copy();
-
-            for (int y = height; y > -1; --y)
+            for (int y = height-1; y > -1; --y)
             {
-                for (int x = 0; x < width + 1; ++x)
+                for (int x = 0; x < width; ++x)
                 {
-                    int i = x + y * (width + 1);
-
-                    if (i % (width + 1) == 0)
+                    if (mainpathcells[x+(y*width)])
                     {
-                        Console.Write("\n");
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write('█');
+                        Console.ForegroundColor = ConsoleColor.White;
                     }
-                    if (i == 13)
+                    else if (drawablecells[x + (y*width)])
                     {
-
-                    }
-                    var connections = distinctwalls.Where(w => w.point1 == i).ToList();
-                    if (connections.Count() != 0)
-                    {
-                        MazeConnection priorityconnection = null;
-                        foreach (var connection in connections)
-                        {
-                            //var connection = connections.First();
-                            if(Math.Abs(connection.point2 - connection.point1) == width+1) //Bottom below the top, we are point1
-                            {
-                                priorityconnection = connection;
-                                continue; //Prioritize vertical walls
-                            }
-                            else if (Math.Abs(connection.point1 - connection.point2) == 1) //Horizontal means 1 space apart
-
-                            {
-                                //Horizontal
-                                if (priorityconnection == null)
-                                {
-                                    priorityconnection = connection;
-                                }
-                                continue;
-                            }
-                            distinctwalls.Remove(connection);
-                        }
-                        if (Math.Abs(priorityconnection.point2 - priorityconnection.point1) == width+1) //Bottom below the top, we are point1
-                        {
-                            DrawWall(WallType.Wall, i);
-                        }
-                        else if (Math.Abs(priorityconnection.point1 - priorityconnection.point2) == 1) //Horizontal means 1 space apart
-                        {
-                            //Horizontal
-                            DrawWall(WallType.DoubleFloor, i);
-                        }
+                        Console.Write('█');
                     }
                     else
                     {
-                        if (distinctwalls.Where(w => w.point1 == i && w.point2 == i + 1).FirstOrDefault() != null) //next is a wall
-                        {
-                            //Start drawing start of wall
-                            DrawWall(WallType.DoubleFloor, i);
-                        }
-                        else if (distinctwalls.Where(w => w.point2 == i && w.point1 == i - 1).FirstOrDefault() != null) //next is a wall
-                        {
-                            //Start drawing start of wall
-                            DrawWall(WallType.Floor, i);
-                            DrawWall(WallType.Space, i);
-                        }
-                        else
-                        {
-                            if (debug)
-                            {
-                                DrawWall(WallType.DebugDot, i);
-                            }
-                            else
-                            {
-                                DrawWall(WallType.Space, i);
-                            }
-                            DrawWall(WallType.Space, i);
-                        }
+                        Console.Write(' ');
                     }
                 }
-            }
-            if (debug)
-            {
                 Console.WriteLine();
-                Console.WriteLine("Wall positions: ");
-                foreach (var wall in walls)
-                {
-                    Console.WriteLine(String.Format("{0}:{1}", wall.point1, wall.point2));
-                }
             }
-        }
-
-        public void DrawWall(WallType wallType, int position)
-        {
-            if (position == 39)
-            {
-
-            }
-            bool cell = position>=width*(height-1) || position%(width+1) == width ? true: claimedcells[(width) * ((position / (width + 1))) + (position % (width + 1))]; //Dots on the top row cannot be a floor, will always be a roof, therefore return true to disable full blocks
-            bool cellabove = position < (height-1)*width && position % (width + 1) != width ? claimedcells[(width) * ((position / (width + 1)) + 1) + (position % (width + 1))] : true; //values at the top of the maze will always have a claimed roof
-            switch (wallType)
-            {
-                case WallType.Floor:
-                    //Start drawing start of wall
-                    if (cell == false &&
-                        cellabove == true &&
-                        (walls.Where(w => w.point1 == position + width + 1 && w.point2 == position + width + 2).FirstOrDefault() != null))
-                    {
-                           Console.Write("█");
-                        //Console.Write("_");
-                    }
-                    else
-                    {
-                        Console.Write("▄");
-                    }
-                    break;
-                case WallType.DoubleFloor:
-                    if (cell == false &&
-                        cellabove == true &&
-                        (walls.Where(w => w.point1 == position + width + 1 && w.point2 == position + width + 2).FirstOrDefault() != null))
-                    {
-                        Console.Write("██");
-                       // Console.Write("__");
-                    }
-                    else
-                    {
-                        Console.Write("▄▄");
-                    }
-                    break;
-                case WallType.Wall:
-                    //Console.Write("|");
-                    Console.Write("█");
-
-                    if (walls.Where(w => w.point1 == position && w.point2 == position + 1).FirstOrDefault() != null) //next is a wall
-                    {
-                        //Start drawing start of wall
-                        DrawWall(WallType.Floor, position);
-                    }
-                    else
-                    {
-                        Console.Write(" ");
-                    }
-                    break;
-                case WallType.DebugDot:
-                    Console.Write(".");
-                    break;
-                case WallType.Space:
-                    Console.Write(' ');
-                    break;
-            }
+            Console.WriteLine();
         }
     }
     public enum WallType
