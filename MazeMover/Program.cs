@@ -17,16 +17,16 @@ namespace MazeMover
             Console.OutputEncoding = System.Text.Encoding.Unicode;
 
 
-            Maze maze = new Maze(100,50);
+            Maze maze = new Maze(10,10);
             maze.GenerateMaze(1, false);
-            maze.Draw(false);
+            maze.Draw(false, 2);
             Console.WriteLine();
             var input = Console.ReadLine();
             if (input == "solution")
             {
-                maze = new Maze(100, 50);
+                maze = new Maze(10, 10);
                 maze.GenerateMaze(1, true);
-                maze.Draw(false);
+                maze.Draw(false, 2);
             }
         }
     }
@@ -379,12 +379,14 @@ namespace MazeMover
             throw new Exception("Direction uncharted");
             return false;
         }
-            public void Draw(bool debug)
+
+        public void Draw(bool debug, int size)
         {
             List<MazeConnection> distinctwalls = walls.Copy();
 
-            for (int y = height; y > -1; --y)
+            for (int heightidx = height * size; heightidx > (-1*size); --heightidx)
             {
+                int y = (int)Math.Ceiling((float)heightidx / size);
                 for (int x = 0; x < width + 1; ++x)
                 {
                     int i = x + y * (width + 1);
@@ -393,10 +395,6 @@ namespace MazeMover
                     {
                         Console.Write("\n");
                     }
-                    if (i == 13)
-                    {
-
-                    }
                     var connections = distinctwalls.Where(w => w.point1 == i).ToList();
                     if (connections.Count() != 0)
                     {
@@ -404,7 +402,7 @@ namespace MazeMover
                         foreach (var connection in connections)
                         {
                             //var connection = connections.First();
-                            if(Math.Abs(connection.point2 - connection.point1) == width+1) //Bottom below the top, we are point1
+                            if (Math.Abs(connection.point2 - connection.point1) == width + 1) //Bottom below the top, we are point1
                             {
                                 priorityconnection = connection;
                                 continue; //Prioritize vertical walls
@@ -421,72 +419,116 @@ namespace MazeMover
                             }
                             distinctwalls.Remove(connection);
                         }
-                        if (Math.Abs(priorityconnection.point2 - priorityconnection.point1) == width+1) //Bottom below the top, we are point1
+                        if (Math.Abs(priorityconnection.point2 - priorityconnection.point1) == width + 1) //Bottom below the top, we are point1
                         {
-                            DrawWall(WallType.Wall, i);
+                            //DrawWall(WallType.Wall, i);
+                            for (int j = 0; j < size; ++j)
+                            {
+                                Console.Write("█");
+                                Console.Write("█");
+                            }
                         }
                         else if (Math.Abs(priorityconnection.point1 - priorityconnection.point2) == 1) //Horizontal means 1 space apart
                         {
                             //Horizontal
-                            DrawWall(WallType.DoubleFloor, i);
-                        }
-                    }
-                    else
-                    {
-                        if (distinctwalls.Where(w => w.point1 == i && w.point2 == i + 1).FirstOrDefault() != null) //next is a wall
-                        {
-                            //Start drawing start of wall
-                            DrawWall(WallType.DoubleFloor, i);
-                        }
-                        else if (distinctwalls.Where(w => w.point2 == i && w.point1 == i - 1).FirstOrDefault() != null) //next is a wall
-                        {
-                            //Start drawing start of wall
-                            DrawWall(WallType.Floor, i);
-                            DrawWall(WallType.Space, i);
-                        }
-                        else
-                        {
-                            if (debug)
+                            if ((heightidx + size) % size != 0)
                             {
-                                DrawWall(WallType.DebugDot, i);
+                                for (int j = 0; j < size; ++j)
+                                {
+                                    DrawWall(WallType.DoubleFloor, i);
+                                }
                             }
                             else
                             {
-                                DrawWall(WallType.Space, i);
+                                for (int j = 0; j < size; ++j)
+                                {
+                                    Console.Write("  ");
+                                }
                             }
-                            DrawWall(WallType.Space, i);
+                        }
+                        else
+                        {
+                            if (distinctwalls.Where(w => w.point1 == i && w.point2 == i + 1).FirstOrDefault() != null) //next is a wall
+                            {
+                                if ((heightidx + 2) % 2 != 0)
+                                {
+                                    //Start drawing start of wall
+                                    for (int j = 0; j < size; ++j)
+                                    {
+                                        DrawWall(WallType.DoubleFloor, i);
+                                    }
+                                }
+                                else
+                                {
+                                    for (int j = 0; j < size; ++j)
+                                    {
+                                        DrawWall(WallType.Space, i);
+                                    }
+                                }
+                            }
+                            else if (distinctwalls.Where(w => w.point2 == i && w.point1 == i - 1).FirstOrDefault() != null) //next is a wall
+                            {
+                                //Start drawing start of wall
+                                if ((heightidx + 2) % 2 != 0)
+                                {
+                                    for (int j = 0; j < size; ++j)
+                                    {
+                                        DrawWall(WallType.Floor, i);
+                                    }
+                                }
+                                for (int j = 0; j < size; ++j)
+                                {
+                                    DrawWall(WallType.Space, i);
+                                }
+                            }
+                            else
+                            {
+                                if (debug)
+                                {
+                                    for (int j = 0; j < size; ++j)
+                                    {
+                                        DrawWall(WallType.DebugDot, i);
+                                    }
+                                }
+                                else
+                                {
+                                    for (int j = 0; j < size; ++j)
+                                    {
+                                        DrawWall(WallType.Space, i);
+                                    }
+                                }
+                                for (int j = 0; j < size; ++j)
+                                {
+                                    DrawWall(WallType.Space, i);
+                                }
+                            }
                         }
                     }
                 }
-            }
-            if (debug)
-            {
-                Console.WriteLine();
-                Console.WriteLine("Wall positions: ");
-                foreach (var wall in walls)
+                if (debug)
                 {
-                    Console.WriteLine(String.Format("{0}:{1}", wall.point1, wall.point2));
+                    Console.WriteLine();
+                    Console.WriteLine("Wall positions: ");
+                    foreach (var wall in walls)
+                    {
+                        Console.WriteLine(String.Format("{0}:{1}", wall.point1, wall.point2));
+                    }
                 }
             }
         }
-
         public void DrawWall(WallType wallType, int position)
         {
-            if (position == 39)
-            {
-
-            }
             bool cell = position>=width*(height-1) || position%(width+1) == width ? true: claimedcells[(width) * ((position / (width + 1))) + (position % (width + 1))]; //Dots on the top row cannot be a floor, will always be a roof, therefore return true to disable full blocks
             bool cellabove = position < (height-1)*width && position % (width + 1) != width ? claimedcells[(width) * ((position / (width + 1)) + 1) + (position % (width + 1))] : true; //values at the top of the maze will always have a claimed roof
             switch (wallType)
             {
                 case WallType.Floor:
                     //Start drawing start of wall
-                    if (cell == false &&
-                        cellabove == true &&
+                    if (cell      == false &&
+                        cellabove == true  &&
                         (walls.Where(w => w.point1 == position + width + 1 && w.point2 == position + width + 2).FirstOrDefault() != null))
                     {
-                           Console.Write("█");
+                        Console.Write("█");
                         //Console.Write("_");
                     }
                     else
