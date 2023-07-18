@@ -17,7 +17,7 @@ namespace MazeMover
             Console.OutputEncoding = System.Text.Encoding.Unicode;
 
 
-            Maze maze = new Maze(10,10);
+            Maze maze = new Maze(100,100);
             maze.GenerateMaze(10, false);
             maze.Draw();
             var input = Console.ReadLine();
@@ -77,45 +77,86 @@ namespace MazeMover
 
             int endmazeidx = 0;
             int searchidx = -1;
-
+            
             while(searchidx < width * height)
             {
                 ++searchidx;
                 //Check to see if there is an available next path
-                if (((cellidx + 1) % width == 0 || claimedcells[cellidx + 1]) //Is there a claimed cell to the right? Or on right edge
-                  && (cellidx == 0 || (cellidx - 1) % width == width - 1 || claimedcells[cellidx - 1]) //Is there a claimed cell to the left? Or on the left edge
-                  && (cellidx + width > width * (height - 1) || claimedcells[cellidx + width]) //Is there a cell to the top? Or on the top edge
-                  && (cellidx <= width || claimedcells[cellidx - width]) //Is there a cell to the bottom? Or on the bottom edge
-                  ) //No possible next step?
+                bool canmoveoneright = ((cellidx + 1) % width != 0 && !claimedcells[cellidx + 1]);
+                bool canmoveoneleft = (cellidx >= 1 && (cellidx - 1) % width != width - 1 && !claimedcells[cellidx - 1]);
+                bool canmoveoneup = (cellidx < width * (height - 1) - 1 && !claimedcells[cellidx + width]);
+                bool canmoveonedown = (cellidx >= width && !claimedcells[cellidx - width]);
+
+                bool canmovetworight = ((cellidx + 2) % width != 0 && !claimedcells[cellidx + 2] &&!claimedcells[cellidx+1]);
+                bool canmovetwoleft = (cellidx >= 2 && (cellidx - 2) % width != width - 1 && !claimedcells[cellidx - 2] && !claimedcells[cellidx - 1]);
+                bool canmovetwoup = (cellidx < width * (height - 2) - 1 && !claimedcells[cellidx + width + width] && !claimedcells[cellidx + width]);
+                bool canmovetwodown = (cellidx >= (width + width) && !claimedcells[cellidx - width - width] && !claimedcells[cellidx - width]);
+
+
+                int directionmodifier = 0;
+
+                bool nomoves = false;
+                if (travelledDirections.Count() != 0) 
+                {
+                    switch (travelledDirections.Last())
+                    {
+                        case Direction.Left:
+                            nomoves = !canmoveoneleft && !canmovetwoup && !canmovetwodown && !canmovetworight;
+                            break;
+                        case Direction.Up:
+                            nomoves = !canmoveoneup && !canmovetwoleft && !canmovetwodown && !canmovetworight;
+                            break;
+                        case Direction.Right:
+                            nomoves = !canmoveoneright && !canmovetwoup && !canmovetwodown && !canmovetwoleft;
+                            break;
+                        case Direction.Down:
+                            nomoves = !canmoveonedown && !canmovetwoup && !canmovetwoleft && !canmovetworight;
+                            break;
+                    }
+                }
+
+                if (nomoves)
                 {
                     //return;
                     searchidx--; //Allow for an extra search
                     claimedcells[cellidx] = true; //Make sure we dont get here again
                     mainpathcells[cellidx] = false;
                     drawablecells[cellidx] = false;
+                    
                     switch (travelledDirections.Last())
                     {
                         case Direction.Left:
-                            cellidx++;
+                            directionmodifier = 1;
                             break;
                         case Direction.Up:
-                            cellidx -= width;
+                            directionmodifier = -width;
                             break;
                         case Direction.Right:
-                            cellidx--;
+                            directionmodifier = -1;
                             break;
                         case Direction.Down:
-                            cellidx += width;
+                            directionmodifier = width;
                             break;
                         case Direction.None:
                             throw new Exception("How did we get here");
                     }
+                    if (travelledDirections[travelledDirections.Count() - 2] != travelledDirections.Last())
+                    {
+                        //Did we just travel in a new direction?
+                        //We will have moved two squares
 
+                        claimedcells[cellidx+directionmodifier] = true;
+                        mainpathcells[cellidx + directionmodifier] = false;
+                        drawablecells[cellidx + directionmodifier] = false;
+                        directionmodifier *= 2;
+                    }
+                    cellidx += directionmodifier;
                     travelledDirections.RemoveAt(travelledDirections.Count() - 1);
-                    Draw();
                     continue;
                 }
                 Direction nextdirection = Direction.None;
+
+                bool directionworks;
                 do
                 {
                     var random = r.Next(0, 4);
@@ -123,50 +164,59 @@ namespace MazeMover
                     {
                         case 0:
                             nextdirection = Direction.Left;
+                            directionmodifier = -1;
                             break;
                         case 1:
                             nextdirection = Direction.Up;
+                            directionmodifier = width;
                             break;
                         case 2:
                             nextdirection = Direction.Down;
+                            directionmodifier = -width;
                             break;
                         case 3:
                             nextdirection = Direction.Right;
+                            directionmodifier = 1;
                             break;
                         default:
                             nextdirection = Direction.None;
                             Console.WriteLine("Crashed with direction of: " + random);
                             break;
                     }
-                } while (((cellidx % width) == 0 && nextdirection == Direction.Left)             //For x=0, cannot move left
-                      || ((cellidx % width) == width - 1 && nextdirection == Direction.Right)    //For x=width, cannot move right
-                      || ((cellidx / width) == 0 && nextdirection == Direction.Down)             //For y=0, cannot move down
-                      || ((cellidx / width) == height - 1 && nextdirection == Direction.Up)
-                      || WillIntersect(cellidx, nextdirection)
-                      || nextdirection == Direction.None);    //For y=height, cannot move up
-                                                              //Establishes bounds
-                int nextcell = 0;
-                switch (nextdirection)
+
+                    directionworks = !(((cellidx % width) == 0 && nextdirection == Direction.Left)             //For x=0, cannot move left
+                  || ((cellidx % width) == width - 1 && nextdirection == Direction.Right)    //For x=width, cannot move right
+                  || ((cellidx / width) == 0 && nextdirection == Direction.Down)             //For y=0, cannot move down
+                  || ((cellidx / width) == height - 1 && nextdirection == Direction.Up)
+                  || (claimedcells[cellidx+directionmodifier]==true)
+                  || nextdirection == Direction.None);
+                    if (travelledDirections.Count() != 0 && nextdirection != travelledDirections.Last() && directionworks) //Change in direction
+                    {
+                        if (searchidx == 50)
+                        {
+
+                        }
+                        directionmodifier *= 2; //Move two squares instead of one
+                        directionworks =
+                            !(((cellidx % width) == 1 && nextdirection == Direction.Left)             //For x=0, cannot move left
+                          || ((cellidx % width) == width - 2 && nextdirection == Direction.Right)    //For x=width, cannot move right
+                          || ((cellidx / width) == 1 && nextdirection == Direction.Down)             //For y=0, cannot move down
+                          || ((cellidx / width) == height - 2 && nextdirection == Direction.Up)
+                          || claimedcells[cellidx + directionmodifier]
+                          || nextdirection == Direction.None);
+                    }
+                } while (!directionworks);    //For y=height, cannot move up
+                                              //Establishes bounds
+                if (directionmodifier % 2 == 0 && Math.Abs(directionmodifier) != width) //Moving two?
                 {
-                    case Direction.Left:
-                        nextcell = cellidx - 1;
-                        break;
-                    case Direction.Up:
-                        nextcell = cellidx + width;
-                        break;
-                    case Direction.Right:
-                        nextcell = cellidx + 1;
-                        break;
-                    case Direction.Down:
-                        nextcell = cellidx - width;
-                        break;
-                    case Direction.None:
-                        break;
-                } //Find position of nextcell and empty out the position of the new wall
+                    claimedcells[cellidx + directionmodifier/2] = true;
+                    mainpathcells[cellidx + directionmodifier / 2] = true;
+                    drawablecells[cellidx + directionmodifier / 2] = true;
+                }
                 claimedcells[cellidx] = true;
                 mainpathcells[cellidx] = true;
                 drawablecells[cellidx] = true;
-                cellidx = nextcell;
+                cellidx += directionmodifier;
                 travelledDirections.Add(nextdirection);
                 //Console.WriteLine();
                 //Console.WriteLine("Iteration: " + (i+1).ToString() + " Moved: " + nextdirection.ToString());
@@ -298,6 +348,10 @@ namespace MazeMover
                     else if (drawablecells[x + (y*width)])
                     {
                         Console.Write('█');
+                    }
+                    else if (claimedcells[x + (y*width)])
+                    {
+                        Console.Write(' ');
                     }
                     else
                     {
