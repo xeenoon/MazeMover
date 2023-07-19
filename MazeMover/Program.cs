@@ -2,13 +2,14 @@
 
 namespace MazeMover
 {
+    [Flags]
     public enum Direction
     {
-        Left,
-        Up,
-        Right,
-        Down,
-        None
+        Left = 1,
+        Up = 2,
+        Right = 4,
+        Down = 8,
+        None = 0,
     }
     class Program
     {
@@ -61,6 +62,17 @@ namespace MazeMover
             mainpathcells = new bool[width * height];
             drawablecells = new bool[width * height];
         }
+        public bool GetCell(int cellidx)
+        {
+            if (cellidx <= -1 || cellidx >= claimedcells.Length)
+            {
+                return false;
+            }
+            else
+            {
+                return claimedcells[cellidx];
+            }
+        }
         public void GenerateMaze(int genseed, bool showsolution)
         {
             //Begin by generating correct path, starting at 0,0
@@ -82,40 +94,68 @@ namespace MazeMover
             {
                 ++searchidx;
                 //Check to see if there is an available next path
-                bool canmoveoneright = ((cellidx + 1) % width != 0 && !claimedcells[cellidx + 1]);
-                bool canmoveoneleft = (cellidx >= 1 && (cellidx - 1) % width != width - 1 && !claimedcells[cellidx - 1]);
-                bool canmoveoneup = (cellidx < width * (height - 1) - 1 && !claimedcells[cellidx + width]);
-                bool canmoveonedown = (cellidx >= width && !claimedcells[cellidx - width]);
+                
+                bool cellsaroundleft  = GetCell(cellidx - 2) || GetCell(cellidx - 1 + width) || GetCell(cellidx - 1 - width);
+                bool cellsaroundright = GetCell(cellidx + 2) || GetCell(cellidx + 1 + width) || GetCell(cellidx + 1 - width);
+                bool cellsaroundup    = GetCell(cellidx + width + width) || GetCell(cellidx + width + 1) || GetCell(cellidx + width - 1);
+                bool cellsarounddown  = GetCell(cellidx - width - width) || GetCell(cellidx - width + 1) || GetCell(cellidx - width - 1);
 
-                bool canmovetworight = ((cellidx + 2) % width != 0 && !claimedcells[cellidx + 2] &&!claimedcells[cellidx+1]);
-                bool canmovetwoleft = (cellidx >= 2 && (cellidx - 2) % width != width - 1 && !claimedcells[cellidx - 2] && !claimedcells[cellidx - 1]);
-                bool canmovetwoup = (cellidx < width * (height - 2) - 1 && !claimedcells[cellidx + width + width] && !claimedcells[cellidx + width]);
-                bool canmovetwodown = (cellidx >= (width + width) && !claimedcells[cellidx - width - width] && !claimedcells[cellidx - width]);
+                bool cellsaroundleft2 = GetCell(cellidx - 3) || GetCell(cellidx - 2 + width) || GetCell(cellidx - 2 - width);
+                bool cellsaroundright2 = GetCell(cellidx + 3) || GetCell(cellidx + 2 + width) || GetCell(cellidx + 2 - width);
+                bool cellsaroundup2 = GetCell(cellidx + width + width + width) || GetCell(cellidx + width + width + 1) || GetCell(cellidx + width + width - 1);
+                bool cellsarounddown2 = GetCell(cellidx - width - width - width) || GetCell(cellidx - width - width + 1) || GetCell(cellidx - width - width - 1);
+
+                bool canmoveoneright = ((cellidx + 1) % width != 0 && !claimedcells[cellidx + 1]) && !cellsaroundright;
+                bool canmoveoneleft = (cellidx % width >= 1 && !claimedcells[cellidx - 1]) && !cellsaroundleft;
+                bool canmoveoneup = (cellidx < width * (height - 1) - 1 && !claimedcells[cellidx + width]) && !cellsaroundup;
+                bool canmoveonedown = (cellidx >= width && !claimedcells[cellidx - width]) && !cellsarounddown;
+
+                bool canmovetworight = ((cellidx + 2) % width != 0 && !claimedcells[cellidx + 2] && !claimedcells[cellidx + 1]) && !cellsaroundright2;
+                bool canmovetwoleft = (cellidx % width >= 2 && !claimedcells[cellidx - 2] && !claimedcells[cellidx - 1]) && !cellsaroundleft2;
+                bool canmovetwoup = (cellidx < width * (height - 2) - 1 && !claimedcells[cellidx + width + width] && !claimedcells[cellidx + width]) && !cellsaroundup2;
+                bool canmovetwodown = (cellidx >= (width + width) && !claimedcells[cellidx - width - width] && !claimedcells[cellidx - width]) && !cellsarounddown2;
 
 
                 int directionmodifier = 0;
 
-                bool nomoves = false;
+                Direction allowedDirections = Direction.None;
                 if (travelledDirections.Count() != 0) 
                 {
                     switch (travelledDirections.Last())
                     {
                         case Direction.Left:
-                            nomoves = !canmoveoneleft && !canmovetwoup && !canmovetwodown && !canmovetworight;
+                            allowedDirections |= (canmoveoneleft) ? Direction.Left : Direction.None;
+                            allowedDirections |= (canmovetwoup) ? Direction.Up : Direction.None;
+                            allowedDirections |= (canmovetwodown) ? Direction.Down : Direction.None;
+                            allowedDirections |= (canmovetworight) ? Direction.Right : Direction.None;
                             break;
                         case Direction.Up:
-                            nomoves = !canmoveoneup && !canmovetwoleft && !canmovetwodown && !canmovetworight;
+                            allowedDirections |= (canmoveoneup) ? Direction.Up : Direction.None;
+                            allowedDirections |= (canmovetwoleft) ? Direction.Left : Direction.None;
+                            allowedDirections |= (canmovetwodown) ? Direction.Down : Direction.None;
+                            allowedDirections |= (canmovetworight) ? Direction.Right : Direction.None;
                             break;
                         case Direction.Right:
-                            nomoves = !canmoveoneright && !canmovetwoup && !canmovetwodown && !canmovetwoleft;
+                            allowedDirections |= (canmoveoneright) ? Direction.Right : Direction.None;
+                            allowedDirections |= (canmovetwoup) ? Direction.Up : Direction.None;
+                            allowedDirections |= (canmovetwodown) ? Direction.Down : Direction.None;
+                            allowedDirections |= (canmovetwoleft) ? Direction.Left : Direction.None;
                             break;
                         case Direction.Down:
-                            nomoves = !canmoveonedown && !canmovetwoup && !canmovetwoleft && !canmovetworight;
+                            allowedDirections |= (canmoveonedown) ? Direction.Down : Direction.None;
+                            allowedDirections |= (canmovetwoup) ? Direction.Up : Direction.None;
+                            allowedDirections |= (canmovetwoleft) ? Direction.Left : Direction.None;
+                            allowedDirections |= (canmovetworight) ? Direction.Right : Direction.None;
                             break;
                     }
                 }
+                else
+                {
+                    //First time
+                    allowedDirections = Direction.Up | Direction.Left;
+                }
 
-                if (nomoves)
+                if (allowedDirections == Direction.None)
                 {
                     //return;
                     searchidx--; //Allow for an extra search
@@ -155,61 +195,34 @@ namespace MazeMover
                     continue;
                 }
                 Direction nextdirection = Direction.None;
-
-                bool directionworks;
-                do
+                
+                var matching = Enum.GetValues(typeof(Direction))
+                   .Cast<Direction>()
+                   .Where(c => (allowedDirections & c) == c && c != Direction.None)    // or use HasFlag in .NET4
+                   .ToArray();
+                nextdirection = matching[r.Next(matching.Length)];
+                switch (nextdirection)
                 {
-                    var random = r.Next(0, 4);
-                    switch (random)
-                    {
-                        case 0:
-                            nextdirection = Direction.Left;
-                            directionmodifier = -1;
-                            break;
-                        case 1:
-                            nextdirection = Direction.Up;
-                            directionmodifier = width;
-                            break;
-                        case 2:
-                            nextdirection = Direction.Down;
-                            directionmodifier = -width;
-                            break;
-                        case 3:
-                            nextdirection = Direction.Right;
-                            directionmodifier = 1;
-                            break;
-                        default:
-                            nextdirection = Direction.None;
-                            Console.WriteLine("Crashed with direction of: " + random);
-                            break;
-                    }
-
-                    directionworks = !(((cellidx % width) == 0 && nextdirection == Direction.Left)             //For x=0, cannot move left
-                  || ((cellidx % width) == width - 1 && nextdirection == Direction.Right)    //For x=width, cannot move right
-                  || ((cellidx / width) == 0 && nextdirection == Direction.Down)             //For y=0, cannot move down
-                  || ((cellidx / width) == height - 1 && nextdirection == Direction.Up)
-                  || (claimedcells[cellidx+directionmodifier]==true)
-                  || nextdirection == Direction.None);
-                    if (travelledDirections.Count() != 0 && nextdirection != travelledDirections.Last() && directionworks) //Change in direction
-                    {
-                        if (searchidx == 50)
-                        {
-
-                        }
-                        directionmodifier *= 2; //Move two squares instead of one
-                        directionworks =
-                            !(((cellidx % width) == 1 && nextdirection == Direction.Left)             //For x=0, cannot move left
-                          || ((cellidx % width) == width - 2 && nextdirection == Direction.Right)    //For x=width, cannot move right
-                          || ((cellidx / width) == 1 && nextdirection == Direction.Down)             //For y=0, cannot move down
-                          || ((cellidx / width) == height - 2 && nextdirection == Direction.Up)
-                          || claimedcells[cellidx + directionmodifier]
-                          || nextdirection == Direction.None);
-                    }
-                } while (!directionworks);    //For y=height, cannot move up
-                                              //Establishes bounds
+                    case Direction.Left:
+                        directionmodifier = -1;
+                        break;
+                    case Direction.Up:
+                        directionmodifier = width;
+                        break;
+                    case Direction.Right:
+                        directionmodifier = 1;
+                        break;
+                    case Direction.Down:
+                        directionmodifier = -width;
+                        break;
+                }
+                if (travelledDirections.Count() != 0 && nextdirection != travelledDirections.Last())
+                {
+                    directionmodifier *= 2;
+                }
                 if (directionmodifier % 2 == 0 && Math.Abs(directionmodifier) != width) //Moving two?
                 {
-                    claimedcells[cellidx + directionmodifier/2] = true;
+                    claimedcells[cellidx + directionmodifier / 2] = true;
                     mainpathcells[cellidx + directionmodifier / 2] = true;
                     drawablecells[cellidx + directionmodifier / 2] = true;
                 }
