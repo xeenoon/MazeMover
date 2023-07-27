@@ -8,12 +8,12 @@ namespace MazeMover
 {
     internal static class Extensions
     {
-        public static List<MazeConnection> Copy(this List<MazeConnection> connections)
+        public static List<bool> Copy(this List<bool> list)
         {
-            List<MazeConnection> result = new List<MazeConnection> ();
-            for (int i = 0; i < connections.Count(); ++i)
+            List<bool> result = new List<bool> ();
+            for (int i = 0; i < list.Count(); ++i)
             {
-                result.Add(new MazeConnection(connections[i].point1, connections[i].point2));
+                result.Add(list[i]);
             }
             return result;
         }
