@@ -13,6 +13,8 @@ namespace MazeMover
     }
     class Program
     {
+        public static int placements = 0;
+
         static void Main(string[] args)
         {
             int characterposition = 0;
@@ -22,7 +24,7 @@ namespace MazeMover
             {
                 int width = Console.WindowWidth / 2;
                 int height = Console.WindowHeight - 2;
-                Random r = new Random();
+                Random r = new Random(1);
                 int seed = r.Next();
                 Maze maze = new Maze(width, height);
                 maze.GenerateMaze(seed, false);
@@ -78,6 +80,25 @@ namespace MazeMover
                     Console.CursorLeft = (characterposition % width) * 2; //Maze is double width
                     Console.CursorTop = height - (characterposition / width) - 1;
                     Console.Write("()");
+
+                    //Move the maze
+                    placements++;
+                    if (placements == 29)
+                    {
+
+                    }
+
+              //     Maze.ChangedWall changedwall = maze.MoveWall(characterposition, r); //Random seeding is possible
+              //     Console.CursorLeft = (changedwall.removedwall % width) * 2;
+              //     Console.CursorTop = height - (changedwall.removedwall / width) - 1;
+              //     Console.Write("||"); //Remove the wall
+              //
+              //     Console.CursorLeft = (changedwall.placedwall % width) * 2;
+              //     Console.CursorTop = height - (changedwall.placedwall / width) - 1;
+              //
+              //     Console.ForegroundColor = ConsoleColor.Green;
+              //     Console.Write("██"); //Add the new wall
+              //     Console.ForegroundColor = ConsoleColor.White;
                 }
             }
         }
@@ -95,8 +116,15 @@ namespace MazeMover
     }
     public class Maze
     {
+        public struct ChangedWall
+        {
+            public int removedwall;
+            public int placedwall;
+        }
         int width;
         int height;
+
+        int mazeendidx;
 
         //Enter at 0,0
         //Exit at width,height (top right)
@@ -105,6 +133,7 @@ namespace MazeMover
         public bool[] claimedcells;
         public bool[] mainpathcells;
         public bool[] drawablecells;
+        public bool[] solutioncells;
         public Maze(int width, int height)
         {
             this.width = width;
@@ -112,6 +141,7 @@ namespace MazeMover
             claimedcells = new bool[width * height];
             mainpathcells = new bool[width * height];
             drawablecells = new bool[width * height];
+            solutioncells = new bool[width * height];
         }
         public bool GetCell(int cellidx)
         {
@@ -124,9 +154,218 @@ namespace MazeMover
                 return claimedcells[cellidx];
             }
         }
-        public void SolveMaze()
+        public bool SolveMaze(int cellposition, Direction lastdirection)
         {
+            switch (lastdirection)
+            {
+                case Direction.Left:
+                    cellposition--;
+                    break;
+                case Direction.Up:
+                    cellposition += width;
+                    break;
+                case Direction.Right:
+                    cellposition++;
+                    break;
+                case Direction.Down:
+                    cellposition -= width;
+                    break;
+                case Direction.None:
+                    break;
+            }
+            if (cellposition % width == width - 1 || cellposition >= (height-1) * width)
+            {
+                //End of path reached
+                solutioncells[cellposition] = true;
+                return true;
+            }
+            Direction availableDirections = Direction.None;
 
+            availableDirections |= (lastdirection != Direction.Right && cellposition % width != 0 && GetCell(cellposition - 1) ? Direction.Left : Direction.None);
+            availableDirections |= (lastdirection != Direction.Left && cellposition % width != width-1 && GetCell(cellposition + 1) ? Direction.Right : Direction.None);
+            availableDirections |= (lastdirection != Direction.Up && cellposition >= width && GetCell(cellposition - width) ? Direction.Down : Direction.None);
+            availableDirections |= (lastdirection != Direction.Down && cellposition <= (height - 1) * width && GetCell(cellposition + width) ? Direction.Up : Direction.None);
+
+            var matching = Enum.GetValues(typeof(Direction))
+               .Cast<Direction>()
+               .Where(c => (availableDirections & c) == c && c != Direction.None)    // or use HasFlag in .NET4
+               .ToArray();
+
+            foreach (var match in matching)
+            {
+                if (SolveMaze(cellposition, match)) //Move to that square
+                {
+                    //Highlight this square
+                    solutioncells[cellposition] = true;
+                    return true;
+                }
+            }
+            return false; //Failed path
+        }
+
+        int recursions = 0;
+        bool[] visitedcells;
+        public bool SolveMaze(int cellposition, Direction lastdirection, ref List<int> result) //Returns a list of indexes
+        {
+            if (lastdirection == Direction.None) //First time?
+            {
+                visitedcells = new bool[width*height];
+            }
+            visitedcells[cellposition] = true; //Mark the cell as visited
+            if (recursions > width*height) //Searched every cell to no avail?
+            {
+                return false;
+            }
+            switch (lastdirection)
+            {
+                case Direction.Left:
+                    cellposition--;
+                    break;
+                case Direction.Up:
+                    cellposition += width;
+                    break;
+                case Direction.Right:
+                    cellposition++;
+                    break;
+                case Direction.Down:
+                    cellposition -= width;
+                    break;
+                case Direction.None:
+                    break;
+            }
+            if (cellposition % width == width - 1 || cellposition >= (height - 1) * width)
+            {
+                result.Add(cellposition);
+                return true;
+            }
+            Direction availableDirections = Direction.None;
+
+            availableDirections |= (!visitedcells[cellposition - 1]     && cellposition % width != 0 && GetCell(cellposition - 1) ? Direction.Left : Direction.None);
+            availableDirections |= (!visitedcells[cellposition + 1]     && cellposition % width != width - 1 && GetCell(cellposition + 1) ? Direction.Right : Direction.None);
+            availableDirections |= (!visitedcells[cellposition - width] && cellposition >= width && GetCell(cellposition - width) ? Direction.Down : Direction.None);
+            availableDirections |= (!visitedcells[cellposition + width] && cellposition <= (height - 1) * width && GetCell(cellposition + width) ? Direction.Up : Direction.None);
+
+            var matching = Enum.GetValues(typeof(Direction))
+               .Cast<Direction>()
+               .Where(c => (availableDirections & c) == c && c != Direction.None)    // or use HasFlag in .NET4
+               .ToArray();
+
+            foreach (var match in matching)
+            {
+                ++recursions;
+                if (SolveMaze(cellposition, match, ref result)) //Move to that square
+                {
+                    //Highlight this square
+                    result.Add(cellposition);
+                    //solutioncells[cellposition] = true;
+                    return true; //Maze is solved, we can stop searching now
+                }
+            }
+            return false;
+        }
+        public void FindAllPaths(int cellposition, Direction lastdirection, ref List<int> result) //Returns a list of indexes
+        {
+            ++recursions;
+            if (recursions > width*height)
+            {
+                return;
+            }
+            switch (lastdirection)
+            {
+                case Direction.Left:
+                    cellposition--;
+                    break;
+                case Direction.Up:
+                    cellposition += width;
+                    break;
+                case Direction.Right:
+                    cellposition++;
+                    break;
+                case Direction.Down:
+                    cellposition -= width;
+                    break;
+                case Direction.None:
+                    break;
+            }
+            result.Add(cellposition);
+             
+            Direction availableDirections = Direction.None;
+
+            availableDirections |= (lastdirection != Direction.Right && cellposition % width != 0 && GetCell(cellposition - 1) ? Direction.Left : Direction.None);
+            availableDirections |= (lastdirection != Direction.Left && cellposition % width != width - 1 && GetCell(cellposition + 1) ? Direction.Right : Direction.None);
+            availableDirections |= (lastdirection != Direction.Up && cellposition >= width && GetCell(cellposition - width) ? Direction.Down : Direction.None);
+            availableDirections |= (lastdirection != Direction.Down && cellposition <= (height - 1) * width && GetCell(cellposition + width) ? Direction.Up : Direction.None);
+
+            var matching = Enum.GetValues(typeof(Direction))
+               .Cast<Direction>()
+               .Where(c => (availableDirections & c) == c && c != Direction.None)
+               .ToArray();
+
+            foreach (var match in matching)
+            {
+                FindAllPaths(cellposition, match, ref result);
+            }
+        }
+        public ChangedWall MoveWall(int playerposition, Random r)
+        {
+            ChangedWall result = new ChangedWall();
+            // Steps:
+            // Solve maze to find shortest solution from playerposition
+            // Choose a random place on the main path, ahead of the player, fill this in with a wall
+            // Work backwards from solution to find all paths accessable from the solution
+            // Work fowards from the player to find all paths accessable from the player
+            // Find two squares that are 1 square away (-2,+2,-2*width,+2*width)
+
+            List<int> playerpath = new List<int>();
+            recursions = 0;
+            SolveMaze(playerposition, Direction.None, ref playerpath); //Step 1
+            playerpath.Remove(playerposition);
+
+            int nextwall = playerpath[r.Next(0,playerpath.Count())];
+            claimedcells[nextwall] = false; //Step 2
+            result.placedwall = nextwall;
+
+            List<int> solutionbranches = new List<int>();
+            recursions = 0;
+            FindAllPaths(mazeendidx, Direction.None, ref solutionbranches); //Step 3
+
+            List<int> playerbranches = new List<int>();
+            recursions = 0;
+            FindAllPaths(playerposition, Direction.None, ref playerbranches); //Step 4
+
+            List<int> possiblewallbreakages = new List<int>();
+
+            //Step 5: Compare the two
+            for (int i = 0; i < playerbranches.Count(); ++i)
+            {
+                int idx = playerbranches[i];
+                if (idx%width < width - 2 && solutionbranches.Contains(idx + 2)) //Two to the right?
+                {
+                    possiblewallbreakages.Add(idx + 1); //Break wall one to the right
+                }
+                if (idx % width >= 2 && solutionbranches.Contains(idx - 2)) //Two to the Left?
+                {
+                    possiblewallbreakages.Add(idx - 1); //Break wall one to the left
+                }
+                if (idx / width <= (height-2) * width && solutionbranches.Contains(idx + width + width)) //Two up?
+                {
+                    possiblewallbreakages.Add(idx + width); //Break wall one up
+                }
+                if (idx > width + width && solutionbranches.Contains(idx - width - width)) //Two down?
+                {
+                    possiblewallbreakages.Add(idx - width); //Break wall one down
+                }
+            }
+            if (possiblewallbreakages.Count() == 0) //Created a path of no return?
+            {
+                claimedcells[nextwall] = true; //reset the previous step
+                return MoveWall(playerposition, r);
+            }
+            //Choose a random wall to break
+            int breakidx = possiblewallbreakages[r.Next(0, possiblewallbreakages.Count())];
+            claimedcells[breakidx] = true;
+            result.removedwall = breakidx;
+            return result;
         }
         public void SearchPath(int startidx, bool issolution, Random r)
         { 
@@ -261,43 +500,6 @@ namespace MazeMover
                     else
                     {
                         return;
-                        if (travelledDirections.Count() <= 2) //path is too short?
-                        {
-                            //trim it
-                            for (int i = 0; i < travelledDirections.Count(); ++i)
-                            {
-                                int listidx = travelledDirections.Count() - i - 1;
-                                claimedcells[cellidx] = false;
-                                switch (travelledDirections[listidx])
-                                {
-                                    case Direction.Left:
-                                        directionmodifier = 1;
-                                        break;
-                                    case Direction.Up:
-                                        directionmodifier = -width;
-                                        break;
-                                    case Direction.Right:
-                                        directionmodifier = -1;
-                                        break;
-                                    case Direction.Down:
-                                        directionmodifier = width;
-                                        break;
-                                    case Direction.None:
-                                        throw new Exception("How did we get here");
-                                }
-                                if (listidx == 0 || travelledDirections[listidx-1] != travelledDirections[listidx])
-                                {
-                                    //Did we just travel in a new direction?
-                                    //We will have moved two squares
-
-                                    claimedcells[cellidx + directionmodifier] = false;
-                                    mainpathcells[cellidx + directionmodifier] = false;
-                                    drawablecells[cellidx + directionmodifier] = false;
-                                    directionmodifier *= 2;
-                                }
-                                cellidx += directionmodifier;
-                            }
-                        }
                         return; //If not generating solution, then just die
                     }
                 }
@@ -343,10 +545,6 @@ namespace MazeMover
                 }
                 drawablecells[cellidx] = true;
                 cellidx += directionmodifier;
-                if (cellidx >= 10000)
-                {
-
-                }
                 travelledDirections.Add(nextdirection);
 
                 if (((cellidx % width) == width - 1)    //Have we found a solution
@@ -357,6 +555,7 @@ namespace MazeMover
                         claimedcells[cellidx] = true;
                         mainpathcells[cellidx] = true;
                         drawablecells[cellidx] = true;
+                        mazeendidx = cellidx;
                     }
                     return;
                 }
@@ -414,7 +613,13 @@ namespace MazeMover
             {
                 for (int x = 0; x < width; ++x)
                 {
-                    if (mainpathcells[x+(y*width)])
+                    if (solutioncells[x+(y*width)])
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.Write("██");
+                        Console.ForegroundColor = ConsoleColor.Black;
+                    }
+                    else if (mainpathcells[x+(y*width)])
                     {
                         if (solution)
                         {
