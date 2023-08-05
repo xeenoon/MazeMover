@@ -46,12 +46,7 @@ namespace MazeMover
                     //Dont bother calculating probabilities, just add it
                     chosenpath = setpaths.First();
                     //We are obviously at a dead end, so make sure that we do not go here again
-                    maze.claimedcells[position] = false; //Modify the maze to mark this as a place not to go anymore
-                    Console.CursorLeft = (position % maze.width) * 2;
-                    Console.CursorTop = maze.height - (position / maze.width) - 1;
-                    Console.BackgroundColor = ConsoleColor.DarkBlue;
-                    Console.Write("  ");
-                    Console.BackgroundColor = ConsoleColor.Black;
+                    SetMazeSquare(position);
                     justreachedend = true;
                 }
                 else
@@ -105,19 +100,7 @@ namespace MazeMover
                 if (setpaths.Count() == 1 && justreachedend) //No intersections?
                 {
                     //Increase the blockoff point
-
-                    maze.claimedcells[travelledsquares.Last()] = true; //Modify the maze to mark this as a place not to go anymore
-                    Console.CursorLeft = (travelledsquares.Last() % maze.width) * 2;
-                    Console.CursorTop = maze.height - (travelledsquares.Last() / maze.width) - 1;
-                    Console.BackgroundColor = ConsoleColor.Black;
-                    Console.Write("  ");
-
-                    maze.claimedcells[position] = false;
-                    Console.CursorLeft = (position % maze.width) * 2;
-                    Console.CursorTop = maze.height - (position / maze.width) - 1;
-                    Console.BackgroundColor = ConsoleColor.DarkBlue;
-                    Console.Write("  ");
-                    Console.BackgroundColor = ConsoleColor.Black;
+                    SetMazeSquare(position);
                 }
 
                 chosenpath = setpaths.Where(p => p.Any(p2 => chosenpath.Contains(p2))).First();
@@ -135,6 +118,16 @@ namespace MazeMover
             chosenpath.Remove(position);
 
             travelledsquares.Add(position);
+        }
+        void SetMazeSquare(int position)
+        {
+            maze.claimedcells[position] = false;
+            return;
+            Console.CursorLeft = (position % maze.width) * 2;
+            Console.CursorTop = maze.height - (position / maze.width) - 1;
+            Console.BackgroundColor = ConsoleColor.DarkBlue;
+            Console.Write("  ");
+            Console.BackgroundColor = ConsoleColor.Black;
         }
     }
 }
