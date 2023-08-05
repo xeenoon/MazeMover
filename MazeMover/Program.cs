@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿using System.IO;
+using System.Linq;
+using System.Net;
 
 namespace MazeMover
 {
@@ -14,12 +16,30 @@ namespace MazeMover
     class Program
     {
         public static int placements = 0;
-
+        static List<ConsoleColor> consoleColors = new List<ConsoleColor>() 
+        {
+            ConsoleColor.DarkBlue,
+            ConsoleColor.DarkGreen,
+            ConsoleColor.DarkCyan,
+            ConsoleColor.DarkRed,
+            ConsoleColor.DarkMagenta,
+            ConsoleColor.DarkYellow,
+            ConsoleColor.Gray,
+            ConsoleColor.DarkGray,
+            ConsoleColor.Blue,
+            ConsoleColor.Green,
+            ConsoleColor.Cyan,
+            ConsoleColor.Red,
+            ConsoleColor.Magenta,
+            ConsoleColor.Yellow,
+        };
+        static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
         static void Main(string[] args)
         {
             int characterposition = 0;
             Console.ReadKey();
             Console.OutputEncoding = System.Text.Encoding.Unicode;
+            List<List<int>> setpaths = new List<List<int>>();
             while (true) 
             {
                 int width = Console.WindowWidth / 2;
@@ -88,15 +108,44 @@ namespace MazeMover
 
                     }
                     //Find plausible paths from player position
-                    List<int> setsquares = new List<int>();
-                    maze.FindPlausiblePaths(characterposition, Direction.None, ref setsquares);
-                    Console.BackgroundColor = ConsoleColor.Green;
-                    setsquares.Remove(characterposition);
-                    foreach (var square in setsquares)
+                    //Remove old ones
+                    Console.BackgroundColor = ConsoleColor.Black;
+                    foreach (var path in setpaths)
                     {
-                        Console.CursorLeft = (square % width) * 2;
-                        Console.CursorTop = (height) - (square / width) - 1;
-                        Console.Write("  ");
+                        foreach (var square in path)
+                        {
+                            if (square != characterposition)
+                            {
+                                Console.CursorLeft = (square % width) * 2;
+                                Console.CursorTop = (height) - (square / width) - 1;
+                                Console.Write("  ");
+                            }
+                        }
+                    }
+                    //Add new ones
+                    setpaths.Clear();
+                    maze.recursions = 0;
+                    List<int> fixedpaths = null; //Optional paramater to force include a path
+                    maze.FindPlausiblePaths(characterposition, Direction.None, ref setpaths, ref fixedpaths);
+                    chosenColors.Clear(); //Used to ensure every path has a unique color
+                    foreach (var path in setpaths)
+                    {
+                        ConsoleColor chosencolor;
+                        do
+                        {
+                            chosencolor = consoleColors[r.Next(0, consoleColors.Count())];
+                        } while (chosenColors.Contains(chosencolor));
+                        chosenColors.Add(chosencolor);
+                        Console.BackgroundColor = chosencolor;
+                        foreach (var square in path)
+                        {
+                            if (square != characterposition)
+                            {
+                                Console.CursorLeft = (square % width) * 2;
+                                Console.CursorTop = (height) - (square / width) - 1;
+                                Console.Write("  ");
+                            }
+                        }
                     }
                     Console.BackgroundColor = ConsoleColor.Black;
 
@@ -216,7 +265,7 @@ namespace MazeMover
             return false; //Failed path
         }
 
-        int recursions = 0;
+        public int recursions = 0;
         bool[] visitedcells;
         public bool SolveMaze(int cellposition, Direction lastdirection, ref List<int> result) //Returns a list of indexes
         {
@@ -319,9 +368,9 @@ namespace MazeMover
                 FindAllPaths(cellposition, match, ref result);
             }
         }
-        public bool FindPlausiblePaths(int cellposition, Direction lastdirection, ref List<int> result, int lastdistancetravelled = 0, int totaldistancetravelled = 0)
+        public bool FindPlausiblePaths(int cellposition, Direction lastdirection, ref List<List<int>> result, ref List<int> currentpathcells, int lastdistancetravelled = 0, int totaldistancetravelled = 0)
         {
-            if(totaldistancetravelled == 10) //Dont look ahead more than 10 squares
+            if(totaldistancetravelled == 20) //Dont look ahead more than 10 squares
             {
                 return false;
             }
@@ -348,9 +397,9 @@ namespace MazeMover
                 case Direction.None:
                     break;
             }
-            if (lastdistancetravelled == 0 || lastdistancetravelled >= 4)
+            if ((lastdistancetravelled >= 4) && lastdirection != Direction.None)
             {
-                result.Add(cellposition);
+                currentpathcells.Add(cellposition);
                 placed = true;
             }
 
@@ -365,7 +414,7 @@ namespace MazeMover
                .Cast<Direction>()
                .Where(c => (availableDirections & c) == c && c != Direction.None)
                .ToArray();
-            if (matching.Count() == 1) //Only one direction?
+            if (matching.Count() != 0)
             {
                 ++lastdistancetravelled;
             }
@@ -376,9 +425,15 @@ namespace MazeMover
             ++totaldistancetravelled;
             foreach (var match in matching)
             {
-                if (FindPlausiblePaths(cellposition, match, ref result, lastdistancetravelled, totaldistancetravelled)) //Was the one after me set?
+                if (lastdirection == Direction.None)
                 {
-                    result.Add(cellposition);
+                    List<int> toadd = new List<int>();
+                    FindPlausiblePaths(cellposition, match, ref result, ref toadd, lastdistancetravelled, totaldistancetravelled); //Search a new path
+                    result.Add(toadd);
+                }
+                else if (FindPlausiblePaths(cellposition, match, ref result, ref currentpathcells, lastdistancetravelled, totaldistancetravelled)) //Was the one after me set?
+                {
+                    currentpathcells.Add(cellposition);
                     placed = true; //I should be set to
                 }
             }
