@@ -26,8 +26,8 @@ namespace MazeMover
             public int removedwall;
             public int placedwall;
         }
-        int width;
-        int height;
+        public int width;
+        public int height;
 
         public int mazeendidx;
 
@@ -213,7 +213,7 @@ namespace MazeMover
         }
         public bool FindPlausiblePaths(bool firstiteration, int cellposition, Direction lastdirection, ref List<List<int>> result, ref List<int> currentpathcells, int lastdistancetravelled = 0, int totaldistancetravelled = 0)
         {
-            if (totaldistancetravelled == 20) //Dont look ahead more than 10 squares
+            if (totaldistancetravelled == 20) //Dont look ahead more than 20 squares
             {
                 return false;
             }
@@ -241,7 +241,7 @@ namespace MazeMover
                 case Direction.None:
                     break;
             }
-            if ((lastdistancetravelled >= 4 || cellposition == mazeendidx) && !firstiteration)
+            if ((lastdistancetravelled >= 10 || cellposition == mazeendidx) && !firstiteration)
             {
                 currentpathcells.Add(cellposition);
                 placed = true;
@@ -274,7 +274,7 @@ namespace MazeMover
 
                     List<List<int>> paths = new List<List<int>>();
                     List<int> temp = new List<int>();
-                    FindPlausiblePaths(true, lastcellposition, lastdirection, ref paths, ref temp, 0, totaldistancetravelled - 1); //Search a new path
+                    FindPlausiblePaths(true, lastcellposition, lastdirection, ref paths, ref temp, lastdistancetravelled-1, totaldistancetravelled - 1); //Search a new path
 
                     if (paths.Count() == 1) //Only one good path?
                     {

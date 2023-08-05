@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 
@@ -18,7 +19,6 @@ namespace MazeMover
         public static int placements = 0;
         static List<ConsoleColor> consoleColors = new List<ConsoleColor>() 
         {
-            ConsoleColor.DarkBlue,
             ConsoleColor.DarkGreen,
             ConsoleColor.DarkCyan,
             ConsoleColor.DarkRed,
@@ -34,6 +34,7 @@ namespace MazeMover
             ConsoleColor.Yellow,
         };
         static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
+        const int totalmovetime = 50;
         static void Main(string[] args)
         {
             int characterposition = 0;
@@ -44,7 +45,7 @@ namespace MazeMover
             {
                 int width = Console.WindowWidth / 2;
                 int height = Console.WindowHeight - 2;
-                Random r = new Random(1);
+                Random r = new Random();
                 int seed = r.Next();
                 Maze maze = new Maze(width, height);
                 maze.GenerateMaze(seed, false);
@@ -58,12 +59,19 @@ namespace MazeMover
                 AI ai = new AI(0, maze);
 
 
+                Stopwatch turntimer = new Stopwatch();
                 while (true) 
                 {
                     Console.CursorLeft = 0;
                     Console.CursorTop = height; //Write moves at bottom of board
                     //ConsoleKey input = Console.ReadKey().Key;
-                    Thread.Sleep(10);
+                    turntimer.Stop();
+                    if (turntimer.ElapsedMilliseconds <= totalmovetime)
+                    {
+                        Thread.Sleep(totalmovetime - (int)turntimer.ElapsedMilliseconds);
+                    }
+
+                    turntimer.Restart();
                     Console.CursorLeft = 0;
                     Console.CursorTop = height; //Write moves at bottom of board
                     Console.Write(' ');
