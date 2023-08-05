@@ -87,6 +87,19 @@ namespace MazeMover
                     {
 
                     }
+                    //Find plausible paths from player position
+                    List<int> setsquares = new List<int>();
+                    maze.FindPlausiblePaths(characterposition, Direction.None, ref setsquares);
+                    Console.BackgroundColor = ConsoleColor.Green;
+                    setsquares.Remove(characterposition);
+                    foreach (var square in setsquares)
+                    {
+                        Console.CursorLeft = (square % width) * 2;
+                        Console.CursorTop = (height) - (square / width) - 1;
+                        Console.Write("  ");
+                    }
+                    Console.BackgroundColor = ConsoleColor.Black;
+
 
               //     Maze.ChangedWall changedwall = maze.MoveWall(characterposition, r); //Random seeding is possible
               //     Console.CursorLeft = (changedwall.removedwall % width) * 2;
@@ -305,6 +318,71 @@ namespace MazeMover
             {
                 FindAllPaths(cellposition, match, ref result);
             }
+        }
+        public bool FindPlausiblePaths(int cellposition, Direction lastdirection, ref List<int> result, int lastdistancetravelled = 0, int totaldistancetravelled = 0)
+        {
+            if(totaldistancetravelled == 10) //Dont look ahead more than 10 squares
+            {
+                return false;
+            }
+            ++recursions;
+            bool placed = false;
+            if (recursions > width * height)
+            {
+                return false;
+            }
+            switch (lastdirection)
+            {
+                case Direction.Left:
+                    cellposition--;
+                    break;
+                case Direction.Up:
+                    cellposition += width;
+                    break;
+                case Direction.Right:
+                    cellposition++;
+                    break;
+                case Direction.Down:
+                    cellposition -= width;
+                    break;
+                case Direction.None:
+                    break;
+            }
+            if (lastdistancetravelled == 0 || lastdistancetravelled >= 4)
+            {
+                result.Add(cellposition);
+                placed = true;
+            }
+
+            Direction availableDirections = Direction.None;
+
+            availableDirections |= (lastdirection != Direction.Right && cellposition % width != 0 && GetCell(cellposition - 1) ? Direction.Left : Direction.None);
+            availableDirections |= (lastdirection != Direction.Left && cellposition % width != width - 1 && GetCell(cellposition + 1) ? Direction.Right : Direction.None);
+            availableDirections |= (lastdirection != Direction.Up && cellposition >= width && GetCell(cellposition - width) ? Direction.Down : Direction.None);
+            availableDirections |= (lastdirection != Direction.Down && cellposition <= (height - 1) * width && GetCell(cellposition + width) ? Direction.Up : Direction.None);
+
+            var matching = Enum.GetValues(typeof(Direction))
+               .Cast<Direction>()
+               .Where(c => (availableDirections & c) == c && c != Direction.None)
+               .ToArray();
+            if (matching.Count() == 1) //Only one direction?
+            {
+                ++lastdistancetravelled;
+            }
+            else
+            {
+                lastdistancetravelled = 0;
+            }
+            ++totaldistancetravelled;
+            foreach (var match in matching)
+            {
+                if (FindPlausiblePaths(cellposition, match, ref result, lastdistancetravelled, totaldistancetravelled)) //Was the one after me set?
+                {
+                    result.Add(cellposition);
+                    placed = true; //I should be set to
+                }
+            }
+            return placed;
         }
         public ChangedWall MoveWall(int playerposition, Random r)
         {
