@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -37,7 +38,8 @@ namespace MazeMover
         const int totalmovetime = 50;
         static void Main(string[] args)
         {
-            int characterposition = 0;
+            int AI_position = 0;
+            int player_position = 0;
             Console.ReadKey();
             Console.OutputEncoding = System.Text.Encoding.Unicode;
             List<List<int>> setpaths = new List<List<int>>();
@@ -47,129 +49,159 @@ namespace MazeMover
                 int height = Console.WindowHeight - 2;
                 Random r = new Random();
                 int seed = r.Next();
-                Maze maze = new Maze(width, height);
-                maze.GenerateMaze(seed, false);
+                Maze maze = new Maze(width, height, seed);
+                maze.GenerateMaze();
                 Console.Clear();
                 maze.Draw(false);
                 Console.ForegroundColor = ConsoleColor.White;
-                //Draw character position and readkey to find new position
-                Console.CursorLeft = (characterposition % width) * 2; //Maze is double width
-                Console.CursorTop = height - (characterposition / width) - 1;
+                //Draw AI position
+                Console.CursorLeft = (AI_position % width) * 2; //Maze is double width
+                Console.CursorTop = height - (AI_position / width) - 1;
                 Console.Write("()");
-                AI ai = new AI(0, maze);
 
-
-                Stopwatch turntimer = new Stopwatch();
-                while (true) 
+                //Player movement
+                bool selecting = false;
+                Task.Factory.StartNew(() =>
                 {
-                    Console.CursorLeft = 0;
-                    Console.CursorTop = height; //Write moves at bottom of board
-                    //ConsoleKey input = Console.ReadKey().Key;
-                    turntimer.Stop();
-                    if (turntimer.ElapsedMilliseconds <= totalmovetime)
+                    player_position = (maze.height-1) * maze.width;
+
+                    while (AI_position != maze.mazeendidx)
                     {
-                        Thread.Sleep(totalmovetime - (int)turntimer.ElapsedMilliseconds);
-                    }
-
-                    turntimer.Restart();
-                    Console.CursorLeft = 0;
-                    Console.CursorTop = height; //Write moves at bottom of board
-                    Console.Write(' ');
-
-                    //Remove last one
-                    Console.CursorLeft = (characterposition % width) * 2; //Maze is double width
-                    Console.CursorTop = height - (characterposition / width) - 1;
-                    Console.Write("  ");
-
-                    //Player movement
-                    /* 
-                    switch (input)
-                    {
-                        case ConsoleKey.W:
-                            if (characterposition / width < height-1 && maze.GetCell(characterposition + width)) //Can we move up?
-                            {
-                                characterposition += width;
-                            }
-                            break;
-                        case ConsoleKey.A:
-                            if (characterposition % width >= 1 && maze.GetCell(characterposition - 1)) //Can we move left?
-                            {
-                                characterposition--;
-                            }
-                            break;
-                        case ConsoleKey.S:
-                            if (characterposition >= width && maze.GetCell(characterposition - width)) //Can we move down?
-                            {
-                                characterposition -= width;
-                            }
-                            break;
-                        case ConsoleKey.D:
-                            if (characterposition % width < width-1 && maze.GetCell(characterposition + 1)) //Can we move right?
-                            {
-                                characterposition++;
-                            }
-                            break;
-                    }
-                    */
-
-                    //AI movement
-                    ai.Move();
-                    characterposition = ai.position;
-
-                    Console.CursorLeft = (characterposition % width) * 2; //Maze is double width
-                    Console.CursorTop = height - (characterposition / width) - 1;
-                    Console.Write("()");
-                    if (ai.position == maze.mazeendidx)
-                    {
-                        while (true)
+                        ConsoleColor backcolor = ConsoleColor.Black;
+                        if (!maze.GetCell(player_position)) //Open cell
                         {
-                            //Stop the program
+                            backcolor = ConsoleColor.White;
+                        }
+                        ConsoleColor playercolor = ConsoleColor.Cyan;
+                        if (selecting)
+                        {
+                            playercolor = ConsoleColor.Green;
+                        }
+                        queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "()", playercolor, backcolor));
+                        var input = Console.ReadKey(true).Key;
+                        queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "  ", ConsoleColor.Blue, backcolor));
+                        switch (input)
+                        {
+                            case ConsoleKey.W:
+                                if (player_position / width < height - 1 && player_position + width != AI_position) //Can we move up?
+                                {
+                                    player_position += width;
+                                }
+                                break;
+                            case ConsoleKey.A:
+                                if (player_position % width >= 1 && player_position - 1  != AI_position) //Can we move left?
+                                {
+                                    player_position--;
+                                }
+                                break;
+                            case ConsoleKey.S:
+                                if (player_position >= width && player_position - width != AI_position) //Can we move down?
+                                {
+                                    player_position -= width;
+                                }
+                                break;
+                            case ConsoleKey.D:
+                                if (player_position % width < width - 1 && player_position + 1 != AI_position) //Can we move right?
+                                {
+                                    player_position++;
+                                }
+                                break;
+                            case ConsoleKey.Enter:
+                                //Show solution
+                                if (selecting)
+                                {
+                                    selecting = false;
+                                }
+                                else
+                                {
+                                    selecting = true;
+                                }
+                                break;
                         }
                     }
+                                        
+                });
+                Task.Factory.StartNew(() =>
+                {
+                    AI ai = new AI(0, maze.Copy());
 
-                    continue;
-                    //Find plausible paths from player position
-                    //Remove old ones
-                    Console.BackgroundColor = ConsoleColor.Black;
-                    foreach (var path in setpaths)
+
+                    Stopwatch turntimer = new Stopwatch();
+
+                    while (true)
                     {
-                        foreach (var square in path)
+                        turntimer.Stop();
+                        if (turntimer.ElapsedMilliseconds <= totalmovetime)
                         {
-                            if (square != characterposition)
-                            {
-                                Console.CursorLeft = (square % width) * 2;
-                                Console.CursorTop = (height) - (square / width) - 1;
-                                Console.Write("  ");
-                            }
+                            Thread.Sleep(totalmovetime - (int)turntimer.ElapsedMilliseconds);
                         }
-                    }
-                    //Add new ones
-                    setpaths.Clear();
-                    maze.recursions = 0;
-                    List<int> fixedpaths = null; //Optional paramater to force include a path
-                    maze.FindPlausiblePaths(true, characterposition, Direction.None, ref setpaths, ref fixedpaths);
-                    chosenColors.Clear(); //Used to ensure every path has a unique color
-                    foreach (var path in setpaths)
-                    {
-                        ConsoleColor chosencolor;
-                        do
+
+                        turntimer.Restart();
+                        
+                        //Remove last one
+                        queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "  ", ConsoleColor.Black, ConsoleColor.Black));
+
+
+                        //AI movement
+                        ai.Move();
+                        AI_position = ai.position;
+                        
+                        queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "()", ConsoleColor.White, ConsoleColor.Black));
+
+                        if (ai.position == maze.mazeendidx)
                         {
-                            chosencolor = consoleColors[r.Next(0, consoleColors.Count())];
-                        } while (chosenColors.Contains(chosencolor));
-                        chosenColors.Add(chosencolor);
-                        Console.BackgroundColor = chosencolor;
-                        foreach (var square in path)
-                        {
-                            if (square != characterposition)
+                            while (true)
                             {
-                                Console.CursorLeft = (square % width) * 2;
-                                Console.CursorTop = (height) - (square / width) - 1;
-                                Console.Write("  ");
+                                //Stop the program
                             }
                         }
                     }
-                    Console.BackgroundColor = ConsoleColor.Black;
+                });
+                while (true)
+                {
+                    ConsoleWriteTick();
                 }
+            }
+        }
+
+        struct ConsoleWriteInfo
+        {
+            public int top;
+            public int left;
+            public string data;
+            public ConsoleColor forecolor;
+            public ConsoleColor backcolor;
+
+            public ConsoleWriteInfo(int left, int top, string data, ConsoleColor forecolor, ConsoleColor backcolor)
+            {
+                this.top = top;
+                this.left = left;
+                this.data = data;
+                this.forecolor = forecolor;
+                this.backcolor = backcolor;
+            }
+        }
+        static ConcurrentQueue<ConsoleWriteInfo> queue = new ConcurrentQueue<ConsoleWriteInfo>();
+        public static void ConsoleWriteTick()
+        {
+            //Draw first item in the queue
+            if (queue.Count() == 0)
+            {
+                return;
+            }
+            var towrite = queue.First();
+            Console.CursorTop = towrite.top;
+            Console.CursorLeft = towrite.left;
+            Console.ForegroundColor = towrite.forecolor;
+            Console.BackgroundColor = towrite.backcolor;
+            Console.Write(towrite.data);
+            if(queue.TryDequeue(out towrite))
+            {
+
+            }
+            else
+            {
+
             }
         }
     }

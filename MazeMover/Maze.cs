@@ -30,23 +30,25 @@ namespace MazeMover
         public int height;
 
         public int mazeendidx;
+        public int seed;
 
         //Enter at 0,0
         //Exit at width,height (top right)
 
         //public List<MazeConnection> walls = new List<MazeConnection>();
         public bool[] claimedcells;
-        public bool[] mainpathcells;
-        public bool[] drawablecells;
-        public bool[] solutioncells;
-        public Maze(int width, int height)
+        //public bool[] drawablecells;
+        public Maze(int width, int height, int seed)
         {
             this.width = width;
             this.height = height;
             claimedcells = new bool[width * height];
-            mainpathcells = new bool[width * height];
-            drawablecells = new bool[width * height];
-            solutioncells = new bool[width * height];
+        }
+        public Maze Copy()
+        {
+            Maze m = new Maze(this.width, this.height, seed);
+            m.GenerateMaze();
+            return m;
         }
         public bool GetCell(int cellidx)
         {
@@ -81,7 +83,6 @@ namespace MazeMover
             if (cellposition % width == width - 1 || cellposition >= (height - 1) * width)
             {
                 //End of path reached
-                solutioncells[cellposition] = true;
                 return true;
             }
             Direction availableDirections = Direction.None;
@@ -101,7 +102,6 @@ namespace MazeMover
                 if (SolveMaze(cellposition, match)) //Move to that square
                 {
                     //Highlight this square
-                    solutioncells[cellposition] = true;
                     return true;
                 }
             }
@@ -475,8 +475,6 @@ namespace MazeMover
                     {
                         searchidx--; //Allow for an extra search
                         claimedcells[cellidx] = true; //Make sure we dont get here again
-                        mainpathcells[cellidx] = false;
-                        drawablecells[cellidx] = false;
 
                         switch (travelledDirections.Last())
                         {
@@ -501,8 +499,6 @@ namespace MazeMover
                             //We will have moved two squares
 
                             claimedcells[cellidx + directionmodifier] = true;
-                            mainpathcells[cellidx + directionmodifier] = false;
-                            drawablecells[cellidx + directionmodifier] = false;
                             directionmodifier *= 2;
                         }
                         cellidx += directionmodifier;
@@ -546,16 +542,12 @@ namespace MazeMover
                     claimedcells[cellidx + directionmodifier / 2] = true;
                     if (issolution)
                     {
-                        mainpathcells[cellidx + directionmodifier / 2] = true;
                     }
-                    drawablecells[cellidx + directionmodifier / 2] = true;
                 }
                 claimedcells[cellidx] = true;
                 if (issolution)
                 {
-                    mainpathcells[cellidx] = true;
                 }
-                drawablecells[cellidx] = true;
                 cellidx += directionmodifier;
                 travelledDirections.Add(nextdirection);
 
@@ -565,8 +557,6 @@ namespace MazeMover
                     if (issolution)
                     {
                         claimedcells[cellidx] = true;
-                        mainpathcells[cellidx] = true;
-                        drawablecells[cellidx] = true;
                         mazeendidx = cellidx;
                     }
                     return;
@@ -574,22 +564,16 @@ namespace MazeMover
             }
 
         }
-        public void GenerateMaze(int genseed, bool showsolution)
+        public void GenerateMaze()
         {
             //Begin by generating correct path, starting at 0,0
-            Random r = new Random(genseed);
+            Random r = new Random(seed);
             //Draw first cell
             claimedcells[0] = true;
-            drawablecells[0] = true;
-            mainpathcells[0] = true;
 
 
             SearchPath(width, true, r); //Create a solution to the maze
-            claimedcells = mainpathcells.ToList().Copy().ToArray();
-            if (showsolution)
-            {
-                //return;
-            }
+
             //Generate incorrect paths
             for (int i = 0; i < ((width + height) * (width + height)) / 2; ++i)
             {
@@ -626,28 +610,7 @@ namespace MazeMover
             {
                 for (int x = 0; x < width; ++x)
                 {
-                    if (solutioncells[x + (y * width)])
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.Write("██");
-                        Console.ForegroundColor = ConsoleColor.Black;
-                    }
-                    else if (mainpathcells[x + (y * width)])
-                    {
-                        if (solution)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.Write("██");
-                            Console.ForegroundColor = ConsoleColor.White;
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.White;
-                            Console.Write("  ");
-                            Console.ForegroundColor = ConsoleColor.Black;
-                        }
-                    }
-                    else if (drawablecells[x + (y * width)])
+                    if (claimedcells[x + (y * width)])
                     {
 
                         Console.ForegroundColor = ConsoleColor.White;
