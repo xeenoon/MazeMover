@@ -23,14 +23,15 @@ namespace MazeMover
         public void Move()
         {
             List<List<int>> setpaths = new List<List<int>>();
-            List<int> prevpaths = null;
+            List<int> prevpaths = new List<int>();
             maze.recursions = 0;
+
             maze.FindPlausiblePaths(true, position, Direction.None, ref setpaths, ref prevpaths);
 
             //Check if we can immediatly solve the maze
             List<int> solvepath = setpaths.Where(p=>p.Contains(maze.mazeendidx)).FirstOrDefault();
 
-            if (setpaths.Count() >= 2 && justreachedend)
+            if (setpaths.Count >= 2 && justreachedend)
             {
                 justreachedend = false;
             }
@@ -39,9 +40,9 @@ namespace MazeMover
             {
                 chosenpath = solvepath;
             }
-            else if (chosenpath.Count() == 0 || setpaths.Where(p => p.Any(p2=>chosenpath.Contains(p2))).Count() == 0) //Do we have to generate a new path?
+            else if (chosenpath.Count == 0 || setpaths.Where(p => p.Any(p2 => chosenpath.Contains(p2))).Count() == 0) //Do we have to generate a new path?
             {
-                if (setpaths.Count() == 1) //Only one path
+                if (setpaths.Count == 1) //Only one path
                 {
                     //Dont bother calculating probabilities, just add it
                     chosenpath = setpaths.First();
@@ -122,12 +123,26 @@ namespace MazeMover
         void SetMazeSquare(int position)
         {
             maze.claimedcells[position] = false;
-            return;
-            Console.CursorLeft = (position % maze.width) * 2;
-            Console.CursorTop = maze.height - (position / maze.width) - 1;
-            Console.BackgroundColor = ConsoleColor.DarkBlue;
-            Console.Write("  ");
-            Console.BackgroundColor = ConsoleColor.Black;
+            //return;
+            //Program.queue.Enqueue(new Program.ConsoleWriteInfo((position % maze.width) * 2, maze.height - (position / maze.width) - 1, "  ", ConsoleColor.Blue, ConsoleColor.Blue));
+        }
+        public void ChangeMaze(int removedwall, int placedwall, Maze newmaze)
+        {
+            List<int> toremove = new List<int>();
+
+            maze.claimedcells[removedwall] = true;
+            maze.claimedcells[placedwall] = false;
+
+            newmaze.SolveMaze(position, Direction.None, removedwall, ref toremove);
+            newmaze.SolveMaze(position, Direction.None, placedwall, ref toremove);
+
+            toremove.RemoveAll(p=>p==placedwall);
+            foreach (var location in toremove)
+            {
+                maze.claimedcells[location] = true; //Remove previously placed flags
+            }
+            chosenpath.Clear();
+            travelledsquares.RemoveAll(p=>toremove.Contains(p));
         }
     }
 }
