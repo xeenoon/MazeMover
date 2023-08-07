@@ -738,11 +738,15 @@ namespace MazeMover
             }
             throw new Exception("Direction uncharted");
         }
-        public void Draw()
+        public void Draw(int x_renderstart, int y_renderstart)
         {
-            for (int y = height - 1; y > -1; --y)
+            if (y_renderstart <= -1)
             {
-                for (int x = 0; x < width; ++x)
+                y_renderstart = 0;
+            }
+            for (int y = height - 1 - y_renderstart; y > -1; --y)
+            {
+                for (int x = x_renderstart; x < (Console.WindowWidth/2) + x_renderstart; ++x)
                 {
                     if (mazeendidx == x+ (y*width))
                     {

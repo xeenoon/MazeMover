@@ -19,29 +19,12 @@ namespace MazeMover
     class Program
     {
         public static int placements = 0;
-        static List<ConsoleColor> consoleColors = new List<ConsoleColor>() 
-        {
-            ConsoleColor.DarkGreen,
-            ConsoleColor.DarkCyan,
-            ConsoleColor.DarkRed,
-            ConsoleColor.DarkMagenta,
-            ConsoleColor.DarkYellow,
-            ConsoleColor.Gray,
-            ConsoleColor.DarkGray,
-            ConsoleColor.Blue,
-            ConsoleColor.Green,
-            ConsoleColor.Cyan,
-            ConsoleColor.Red,
-            ConsoleColor.Magenta,
-            ConsoleColor.Yellow,
-        };
-        static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
         static float AI_movespeed = 200;
         static bool unsolvablemaze = false;
         static System.Timers.Timer incAIspeed = new System.Timers.Timer();
 
         public static bool dieinbackground = false;
-
+        
         static void Main(string[] args)
         {
             int AI_position = 0;
@@ -51,7 +34,7 @@ namespace MazeMover
             List<List<int>> setpaths = new List<List<int>>();
             while (true) 
             {
-                int width = Console.WindowWidth / 2;
+                int width = Console.WindowWidth;
                 int height = Console.WindowHeight - 2;
                 Random r = new Random();
                 int seed = r.Next();
@@ -60,8 +43,9 @@ namespace MazeMover
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.BackgroundColor = ConsoleColor.Black;
                 Console.Clear();
-
-                maze.Draw();
+                int viewx=0;
+                int viewy=0;
+                maze.Draw(viewx, viewy);
                 solvingmaze = maze;
                 Console.ForegroundColor = ConsoleColor.White;
                 //Draw AI position
@@ -144,28 +128,24 @@ namespace MazeMover
                         switch (input)
                         {
                             case ConsoleKey.W:
-                            case ConsoleKey.UpArrow:
                                 if (player_position / width < height - 1 && player_position + width != AI_position && player_position + width != selectedwall) //Can we move up?
                                 {
                                     player_position += width;
                                 }
                                 break;
                             case ConsoleKey.A:
-                            case ConsoleKey.LeftArrow:
                                 if (player_position % width >= 1 && player_position - 1  != AI_position && player_position - 1 != selectedwall) //Can we move left?
                                 {
                                     player_position--;
                                 }
                                 break;
                             case ConsoleKey.S:
-                            case ConsoleKey.DownArrow:
                                 if (player_position >= width && player_position - width != AI_position && player_position - width != selectedwall) //Can we move down?
                                 {
                                     player_position -= width;
                                 }
                                 break;
                             case ConsoleKey.D:
-                            case ConsoleKey.RightArrow:
                                 if (player_position % width < width - 1 && player_position + 1 != AI_position && player_position + 1 != selectedwall) //Can we move right?
                                 {
                                     player_position++;
@@ -214,6 +194,36 @@ namespace MazeMover
                                     playercolor = ConsoleColor.Green;
                                     queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "()", playercolor, ConsoleColor.Yellow));
                                 }
+                                break;
+                            case ConsoleKey.UpArrow:
+                                //Draw the maze one square up
+                                viewy--;
+                                Console.CursorLeft = 0;
+                                Console.CursorTop = 0;
+                                maze.Draw(viewx, viewy);
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                //Draw the maze one square up
+                                viewx--;
+                                Console.CursorLeft = 0;
+                                Console.CursorTop = 0;
+                                maze.Draw(viewx, viewy);
+                                break;
+
+                            case ConsoleKey.RightArrow:
+                                //Draw the maze one square up
+                                viewx++;
+                                Console.CursorLeft = 0;
+                                Console.CursorTop = 0;
+                                maze.Draw(viewx, viewy);
+                                break;
+
+                            case ConsoleKey.DownArrow:
+                                //Draw the maze one square up
+                                viewy++;
+                                Console.CursorLeft = 0;
+                                Console.CursorTop = 0;
+                                maze.Draw(viewx, viewy);
                                 break;
                         }
                     }
