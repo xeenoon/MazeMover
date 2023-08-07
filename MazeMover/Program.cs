@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Timers;
 
 namespace MazeMover
 {
@@ -35,8 +36,9 @@ namespace MazeMover
             ConsoleColor.Yellow,
         };
         static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
-        const int totalmovetime = 50;
+        static float AI_movespeed = 100;
         static bool unsolvablemaze = false;
+        static System.Timers.Timer incAIspeed = new System.Timers.Timer();
 
         public static bool dieinbackground = false;
 
@@ -131,6 +133,10 @@ namespace MazeMover
                         {
                             queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "++", ConsoleColor.DarkGreen, backcolor));
                         }
+                        else if(player_position == maze.mazeendidx)
+                        {
+                            queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "++", ConsoleColor.White, backcolor));
+                        }
                         else
                         {
                             queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "  ", ConsoleColor.Black, backcolor));
@@ -186,7 +192,7 @@ namespace MazeMover
                                         maze.claimedcells[selectedwall] = true;
                                         queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "  ", ConsoleColor.White, ConsoleColor.Black));
                                         queue.Enqueue(new ConsoleWriteInfo((selectedwall % maze.width) * 2, maze.height - (selectedwall / maze.width) - 1, "  ", ConsoleColor.Black, ConsoleColor.Black));
-                                        ai.ChangeMaze(selectedwall, player_position, maze.Copy(), maze.mazeendidx);
+                                        ai.ChangeMaze(selectedwall, player_position, maze.Copy());
                                     }
                                     selectedwall = -1;
                                 }
@@ -213,6 +219,11 @@ namespace MazeMover
 
                 Task.Factory.StartNew(() =>
                 {
+                    incAIspeed = new System.Timers.Timer(1000);
+                    incAIspeed.AutoReset = true;
+                    incAIspeed.Elapsed += new System.Timers.ElapsedEventHandler(IncAISpeed);
+                    incAIspeed.Start();
+
                     Stopwatch turntimer = new Stopwatch();
 
                     while (true)
@@ -223,9 +234,10 @@ namespace MazeMover
                         }
 
                         turntimer.Stop();
-                        if (turntimer.ElapsedMilliseconds <= totalmovetime)
+                        if (turntimer.ElapsedMilliseconds <= AI_movespeed)
                         {
-                            Thread.Sleep(totalmovetime - (int)turntimer.ElapsedMilliseconds);
+                            Thread.Sleep((int)AI_movespeed - (int)turntimer.ElapsedMilliseconds);
+                            //totalmovetime = totalmovetime * 0.9f;
                         }
 
                         turntimer.Restart();
@@ -266,13 +278,25 @@ namespace MazeMover
             }
         }
 
+        private static void IncAISpeed(object? sender, ElapsedEventArgs e)
+        {
+            AI_movespeed *= 0.99f;
+        }
+
         private static void HideSolution()
         {
             foreach (int idx in solutionpositions)
             {
                 if (solvingmaze.GetCell(idx))
                 {
-                    queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "  ", ConsoleColor.Red, ConsoleColor.Black));
+                    if (solvingmaze.mazeendidx == idx)
+                    {
+                        queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "++", ConsoleColor.White, ConsoleColor.Black));
+                    }
+                    else
+                    {
+                        queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "  ", ConsoleColor.Red, ConsoleColor.Black));
+                    }
                 }
                 else
                 {

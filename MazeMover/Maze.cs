@@ -42,12 +42,14 @@ namespace MazeMover
         {
             this.width = width;
             this.height = height;
+            this.seed = seed;
             claimedcells = new bool[width * height];
         }
         public Maze Copy()
         {
             Maze m = new Maze(this.width, this.height, seed);
             m.claimedcells = claimedcells.ToList().Copy().ToArray();
+            m.mazeendidx = mazeendidx;
             return m;
         }
         public bool GetCell(int cellidx)
@@ -742,9 +744,14 @@ namespace MazeMover
             {
                 for (int x = 0; x < width; ++x)
                 {
-                    if (claimedcells[x + (y * width)])
+                    if (mazeendidx == x+ (y*width))
                     {
-
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.Write("++");
+                        Console.ForegroundColor = ConsoleColor.Black;
+                    }
+                    else if (claimedcells[x + (y * width)])
+                    {
                         Console.ForegroundColor = ConsoleColor.White;
                         Console.Write("  ");
                         Console.ForegroundColor = ConsoleColor.Black;

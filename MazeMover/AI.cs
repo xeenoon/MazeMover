@@ -26,9 +26,6 @@ namespace MazeMover
             List<int> prevpaths = new List<int>();
             maze.recursions = 0;
 
-            bool t = maze.GetCell(1194);
-            bool f = maze.GetCell(1196);
-
             maze.FindPlausiblePaths(true, position, Direction.None, ref setpaths, ref prevpaths);
 
             //Check if we can immediatly solve the maze
@@ -127,11 +124,10 @@ namespace MazeMover
         {
             maze.claimedcells[position] = false;
             //return;
-            Program.queue.Enqueue(new Program.ConsoleWriteInfo((position % maze.width) * 2, maze.height - (position / maze.width) - 1, "  ", ConsoleColor.Blue, ConsoleColor.Blue));
+            //Program.queue.Enqueue(new Program.ConsoleWriteInfo((position % maze.width) * 2, maze.height - (position / maze.width) - 1, "  ", ConsoleColor.Blue, ConsoleColor.Blue));
         }
-        public void ChangeMaze(int removedwall, int placedwall, Maze newmaze, int endmazeidx)
+        public void ChangeMaze(int removedwall, int placedwall, Maze newmaze)
         {
-            maze.mazeendidx = endmazeidx;
             List<int> toremove = new List<int>();
 
             maze.claimedcells[removedwall] = true;
@@ -147,7 +143,6 @@ namespace MazeMover
             }
             chosenpath.Clear();
             travelledsquares.RemoveAll(p=>toremove.Contains(p));
-            return;
         }
     }
 }
