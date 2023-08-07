@@ -36,7 +36,7 @@ namespace MazeMover
             ConsoleColor.Yellow,
         };
         static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
-        static float AI_movespeed = 100;
+        static float AI_movespeed = 200;
         static bool unsolvablemaze = false;
         static System.Timers.Timer incAIspeed = new System.Timers.Timer();
 
@@ -144,24 +144,28 @@ namespace MazeMover
                         switch (input)
                         {
                             case ConsoleKey.W:
+                            case ConsoleKey.UpArrow:
                                 if (player_position / width < height - 1 && player_position + width != AI_position && player_position + width != selectedwall) //Can we move up?
                                 {
                                     player_position += width;
                                 }
                                 break;
                             case ConsoleKey.A:
+                            case ConsoleKey.LeftArrow:
                                 if (player_position % width >= 1 && player_position - 1  != AI_position && player_position - 1 != selectedwall) //Can we move left?
                                 {
                                     player_position--;
                                 }
                                 break;
                             case ConsoleKey.S:
+                            case ConsoleKey.DownArrow:
                                 if (player_position >= width && player_position - width != AI_position && player_position - width != selectedwall) //Can we move down?
                                 {
                                     player_position -= width;
                                 }
                                 break;
                             case ConsoleKey.D:
+                            case ConsoleKey.RightArrow:
                                 if (player_position % width < width - 1 && player_position + 1 != AI_position && player_position + 1 != selectedwall) //Can we move right?
                                 {
                                     player_position++;
