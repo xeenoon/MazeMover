@@ -36,6 +36,10 @@ namespace MazeMover
         };
         static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
         const int totalmovetime = 50;
+        static bool unsolvablemaze = false;
+
+        public static bool dieinbackground = false;
+
         static void Main(string[] args)
         {
             int AI_position = 0;
@@ -51,8 +55,12 @@ namespace MazeMover
                 int seed = r.Next();
                 Maze maze = new Maze(width, height, seed);
                 maze.GenerateMaze();
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.BackgroundColor = ConsoleColor.Black;
                 Console.Clear();
-                maze.Draw(false);
+
+                maze.Draw();
+                solvingmaze = maze;
                 Console.ForegroundColor = ConsoleColor.White;
                 //Draw AI position
                 Console.CursorLeft = (AI_position % width) * 2; //Maze is double width
@@ -61,47 +69,94 @@ namespace MazeMover
 
                 //Player movement
                 bool selecting = false;
+                int selectedwall = -1;
+                ConsoleColor playercolor = ConsoleColor.Cyan;
+                AI ai = new AI(0, maze.Copy());
+
                 Task.Factory.StartNew(() =>
                 {
                     player_position = (maze.height-1) * maze.width;
 
                     while (AI_position != maze.mazeendidx)
                     {
+                        if (dieinbackground)
+                        {
+                            break;
+                        }
+
                         ConsoleColor backcolor = ConsoleColor.Black;
-                        if (!maze.GetCell(player_position)) //Open cell
+                        if (!maze.GetCell(player_position)) //Wall
                         {
                             backcolor = ConsoleColor.White;
+                            if (selecting)
+                            {
+                                playercolor = ConsoleColor.Green;
+                                unsolvablemaze = false;
+                            }
                         }
-                        ConsoleColor playercolor = ConsoleColor.Cyan;
-                        if (selecting)
+                        if (player_position == selectedwall) //Selected wall
                         {
-                            playercolor = ConsoleColor.Green;
+                            backcolor = ConsoleColor.Yellow;
                         }
+
+                        if (selecting && maze.GetCell(player_position))
+                        {
+                            //Create a new maze and simulate the move
+                            Maze copy = maze.Copy();
+                            copy.claimedcells[selectedwall]    = true;
+                            copy.claimedcells[player_position] = false;
+                            if (copy.SolveMaze(AI_position, Direction.None)) //Is the maze solveable?
+                            {
+                                solvingmaze = copy;
+                                ShowSolution(AI_position);
+                                playercolor = ConsoleColor.Green;
+                                unsolvablemaze = false;
+                            }
+                            else
+                            {
+                                playercolor = ConsoleColor.Red;
+                                HideSolution();
+                                solvingmaze = maze;
+                                unsolvablemaze = true;
+                            }
+                        }
+
                         queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "()", playercolor, backcolor));
                         var input = Console.ReadKey(true).Key;
-                        queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "  ", ConsoleColor.Blue, backcolor));
+                        if (player_position == AI_position)
+                        {
+                            queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "()", ConsoleColor.White, backcolor));
+                        }
+                        if (solutionpositions.Contains(player_position))
+                        {
+                            queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "++", ConsoleColor.DarkGreen, backcolor));
+                        }
+                        else
+                        {
+                            queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "  ", ConsoleColor.Black, backcolor));
+                        }
                         switch (input)
                         {
                             case ConsoleKey.W:
-                                if (player_position / width < height - 1 && player_position + width != AI_position) //Can we move up?
+                                if (player_position / width < height - 1 && player_position + width != AI_position && player_position + width != selectedwall) //Can we move up?
                                 {
                                     player_position += width;
                                 }
                                 break;
                             case ConsoleKey.A:
-                                if (player_position % width >= 1 && player_position - 1  != AI_position) //Can we move left?
+                                if (player_position % width >= 1 && player_position - 1  != AI_position && player_position - 1 != selectedwall) //Can we move left?
                                 {
                                     player_position--;
                                 }
                                 break;
                             case ConsoleKey.S:
-                                if (player_position >= width && player_position - width != AI_position) //Can we move down?
+                                if (player_position >= width && player_position - width != AI_position && player_position - width != selectedwall) //Can we move down?
                                 {
                                     player_position -= width;
                                 }
                                 break;
                             case ConsoleKey.D:
-                                if (player_position % width < width - 1 && player_position + 1 != AI_position) //Can we move right?
+                                if (player_position % width < width - 1 && player_position + 1 != AI_position && player_position + 1 != selectedwall) //Can we move right?
                                 {
                                     player_position++;
                                 }
@@ -111,25 +166,62 @@ namespace MazeMover
                                 if (selecting)
                                 {
                                     selecting = false;
+
+                                    queue.Enqueue(new ConsoleWriteInfo((selectedwall % maze.width) * 2, maze.height - (selectedwall / maze.width) - 1, "  ", ConsoleColor.White, ConsoleColor.White));
+
+                                    solvingmaze = maze;
+                                    HideSolution();
+                                    playercolor = ConsoleColor.Cyan;
+                                    queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "()", playercolor, backcolor));
+
+
+                                    //Check if we can move a wall
+                                    //Create a new maze and simulate the move
+                                    Maze copy = maze.Copy();
+                                    copy.claimedcells[selectedwall] = true;
+                                    copy.claimedcells[player_position] = false;
+                                    if (maze.GetCell(player_position) && copy.SolveMaze(AI_position, Direction.None)) //Moved a wall?
+                                    {
+                                        maze.claimedcells[player_position] = false;
+                                        maze.claimedcells[selectedwall] = true;
+                                        queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "  ", ConsoleColor.White, ConsoleColor.Black));
+                                        queue.Enqueue(new ConsoleWriteInfo((selectedwall % maze.width) * 2, maze.height - (selectedwall / maze.width) - 1, "  ", ConsoleColor.Black, ConsoleColor.Black));
+                                        ai.ChangeMaze(selectedwall, player_position, maze.Copy(), maze.mazeendidx);
+                                    }
+                                    selectedwall = -1;
                                 }
                                 else
                                 {
+                                    if (maze.GetCell(player_position)) //Can only select walls
+                                    {
+                                        break;
+                                    }
+                                    selectedwall = player_position;
+
                                     selecting = true;
+                                    solvingmaze = maze;
+                                    ShowSolution(AI_position);
+                                    playercolor = ConsoleColor.Green;
+                                    queue.Enqueue(new ConsoleWriteInfo((player_position % maze.width) * 2, maze.height - (player_position / maze.width) - 1, "()", playercolor, ConsoleColor.Yellow));
                                 }
                                 break;
                         }
                     }
                                         
-                });
+                }); 
+                
+
                 Task.Factory.StartNew(() =>
                 {
-                    AI ai = new AI(0, maze.Copy());
-
-
                     Stopwatch turntimer = new Stopwatch();
 
                     while (true)
                     {
+                        if (dieinbackground)
+                        {
+                            break;
+                        }
+
                         turntimer.Stop();
                         if (turntimer.ElapsedMilliseconds <= totalmovetime)
                         {
@@ -137,17 +229,27 @@ namespace MazeMover
                         }
 
                         turntimer.Restart();
-                        
-                        //Remove last one
-                        queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "  ", ConsoleColor.Black, ConsoleColor.Black));
 
+                        //Remove last one
+                        if (AI_position == player_position)
+                        {
+                            queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "()", playercolor, ConsoleColor.Black));
+                        }
+                        else
+                        {
+                            queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "  ", ConsoleColor.Black, ConsoleColor.Black));
+                        }
 
                         //AI movement
                         ai.Move();
                         AI_position = ai.position;
-                        
-                        queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "()", ConsoleColor.White, ConsoleColor.Black));
+                        lastAIpaths.Add(ai.position);
 
+                        queue.Enqueue(new ConsoleWriteInfo((AI_position % width) * 2, height - (AI_position / width) - 1, "()", ConsoleColor.White, ConsoleColor.Black));
+                        if (selecting && !unsolvablemaze)
+                        {
+                            ShowSolution(AI_position);
+                        }
                         if (ai.position == maze.mazeendidx)
                         {
                             while (true)
@@ -164,7 +266,69 @@ namespace MazeMover
             }
         }
 
-        struct ConsoleWriteInfo
+        private static void HideSolution()
+        {
+            foreach (int idx in solutionpositions)
+            {
+                if (solvingmaze.GetCell(idx))
+                {
+                    queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "  ", ConsoleColor.Red, ConsoleColor.Black));
+                }
+                else
+                {
+                    queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "  ", ConsoleColor.White, ConsoleColor.White));
+                }
+            }
+            solutionpositions.Clear();
+        }
+
+        static List<int> solutionpositions = new List<int>();
+        static List<int> lastAIpaths = new List<int>();
+        static Maze solvingmaze = null;
+        private static void ShowSolution(int position)
+        {
+            List<int> newpositions = new List<int>();
+            solvingmaze.SolveMaze(position, Direction.None, ref newpositions); //Step 1
+            newpositions.Remove(position);
+            if (newpositions.Count() == 0)
+            {
+                return;
+            }
+
+            foreach (var p in lastAIpaths)
+            {
+                if (newpositions.Contains(p))
+                {
+                    queue.Enqueue(new ConsoleWriteInfo((p % solvingmaze.width) * 2, solvingmaze.height - (p / solvingmaze.width) - 1, "++", ConsoleColor.DarkGreen, ConsoleColor.Black));
+                }
+            }
+
+            foreach (int idx in solutionpositions.Where(p => !newpositions.Contains(p)))
+            {
+                if (solvingmaze.GetCell(idx))
+                {
+                    queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "  ", ConsoleColor.DarkGreen, ConsoleColor.Black));
+                }
+                else
+                {
+                    queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "  ", ConsoleColor.White, ConsoleColor.White));
+                }
+            }
+
+            foreach (int idx in newpositions.Where(p => !solutionpositions.Contains(p)))
+            {
+                queue.Enqueue(new ConsoleWriteInfo((idx % solvingmaze.width) * 2, solvingmaze.height - (idx / solvingmaze.width) - 1, "++", ConsoleColor.DarkGreen, ConsoleColor.Black));
+            }
+
+            queue.Enqueue(new ConsoleWriteInfo((position % solvingmaze.width) * 2, solvingmaze.height - (position / solvingmaze.width) - 1, "()", ConsoleColor.White, ConsoleColor.Black)); //Ensure we did not overwrite the position
+
+
+            solutionpositions = newpositions;
+        }
+
+
+
+        public struct ConsoleWriteInfo
         {
             public int top;
             public int left;
@@ -181,7 +345,7 @@ namespace MazeMover
                 this.backcolor = backcolor;
             }
         }
-        static ConcurrentQueue<ConsoleWriteInfo> queue = new ConcurrentQueue<ConsoleWriteInfo>();
+        public static ConcurrentQueue<ConsoleWriteInfo> queue = new ConcurrentQueue<ConsoleWriteInfo>();
         public static void ConsoleWriteTick()
         {
             //Draw first item in the queue
@@ -193,6 +357,10 @@ namespace MazeMover
             Console.CursorTop = towrite.top;
             Console.CursorLeft = towrite.left;
             Console.ForegroundColor = towrite.forecolor;
+            if (towrite.backcolor == ConsoleColor.Yellow)
+            {
+
+            }
             Console.BackgroundColor = towrite.backcolor;
             Console.Write(towrite.data);
             if(queue.TryDequeue(out towrite))
