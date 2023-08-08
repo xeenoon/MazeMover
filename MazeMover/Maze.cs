@@ -346,7 +346,7 @@ namespace MazeMover
                 visitedcells = new bool[width * height];
                 recursions = 0;
             }
-            if (totaldistancetravelled == 20) //Dont look ahead more than 20 squares
+            if (totaldistancetravelled == 6) //Dont look ahead more than 6 squares
             {
                 return false;
             }
@@ -376,7 +376,7 @@ namespace MazeMover
                 case Direction.None:
                     break;
             }
-            if ((lastdistancetravelled >= 10 || cellposition == mazeendidx) && !firstiteration)
+            if ((lastdistancetravelled >= 5 || cellposition == mazeendidx) && !firstiteration)
             {
                 currentpathcells.Add(cellposition);
                 placed = true;
