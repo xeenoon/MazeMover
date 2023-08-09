@@ -28,7 +28,7 @@ namespace MazeUI
         public Form1()
         {
             InitializeComponent();
-            maze = new Maze((Width / 21), (Height / 21) - 1, 0); //-1 accounts for borders
+            maze = new Maze((Width / 10), (Height / 10), new Random().Next()); //-1 accounts for borders
             maze.GenerateMaze();
             centre = new Point(Width / 2, Height / 2);
             GenerateMaze();
@@ -60,15 +60,20 @@ namespace MazeUI
         }
 
         bool stopAI;
+        bool airunning = false;
         void StartAI()
         {
             AI ai = new AI(0, maze.Copy());
             Task.Factory.StartNew(() =>
             {
-                while (stopAI)
+                while (airunning)
                 {
                     //If previous iteration was killed, wait for it to completely die
                 }
+                airunning = true;
+                AI_position = new PointF(0, maze.height * cellsize);
+
+                stopAI = false;
 
                 incAIspeed = new System.Timers.Timer(1000);
                 incAIspeed.AutoReset = true;
@@ -87,6 +92,7 @@ namespace MazeUI
                             if (stopAI)
                             {
                                 stopAI = false;
+                                airunning = false;
                                 return;
                             }
                             Thread.Sleep(1);
@@ -101,62 +107,59 @@ namespace MazeUI
                     MoveAI(ai.position, oldposition);
                     if (ai.position == maze.mazeendidx)
                     {
-                        while (true)
-                        {
-                            //Stop the program
-                            if (stopAI)
-                            {
-                                stopAI = false;
-                                return;
-                            }
-                        }
+                        airunning = false;
+                        return;
                     }
                 }
             });
-
         }
         bool moveairunning = false;
         private void MoveAI(int AI_position, int AI_oldposition)
         {
             while (moveairunning) { } //Wait for other threads to finish
             moveairunning = true;
-            float xmove = AI_position % maze.width - AI_oldposition % maze.width;
-            float ymove = AI_position / maze.width - AI_oldposition / maze.width;
-            float distance = cellsize * (xmove + ymove);
-            
-            
-            Point exactposition = new Point(AI_position%maze.width, AI_position/maze.width);
+            float xmove = (AI_position % maze.width - AI_oldposition % maze.width)*cellsize;
+            float ymove = (AI_position / maze.width - AI_oldposition / maze.width)*cellsize;
             //No pythag therom required as movements are only ever straight
             Stopwatch s = new Stopwatch();
             s.Start();
-            while (s.ElapsedMilliseconds < (AI_movespeed - 10))
+            //Make 10 steps
+            for (int i = 0; i < 5; ++i)
             {
-                float timeleft = AI_movespeed - s.ElapsedMilliseconds;
-                this.AI_position.X += (distance / timeleft) * xmove;
-                this.AI_position.Y += (distance / timeleft) * ymove;
-
-                pictureBox1.Invoke((MethodInvoker)delegate
+                if (s.ElapsedMilliseconds >= AI_movespeed || stopAI) //Drew board too slowly?
                 {
-                    // Running on the UI thread
-                    pictureBox1.Refresh();
-                });
-                Thread.Sleep(10);
-                while (drawing) { } //Wait for other thread to finish
+                    //Exit
+                    break;
+                }
+                this.AI_position.X += xmove / 5;
+                this.AI_position.Y += ymove / 5;
+                RedrawMaze();
+                while (drawing) { }
+                if (i <= 3)
+                {
+                    Thread.Sleep((int)(AI_movespeed / 5));
+                }
             }
-            this.AI_position = new PointF(cellsize * (AI_position%maze.width), cellsize * (AI_position/maze.width));
+            if (stopAI)
+            {
+                moveairunning = false;
+                return;
+            }
+            this.AI_position = new PointF((AI_position % maze.width) * cellsize, (AI_position/maze.width) * cellsize);
+            RedrawMaze();
             moveairunning = false;
         }
 
         private void IncAISpeed(object? sender, ElapsedEventArgs e)
         {
-            AI_movespeed *= 0.99f;
+            //AI_movespeed *= 0.99f;
         }
         bool drawing = false;
+        bool mazechanged = true;
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
         {
-            drawing = true;
             e.Graphics.DrawImage(mazebitmap, xdraw, ydraw);
-            e.Graphics.DrawImage(AI_bitmap, (AI_position.X) + xdraw, (Height - (AI_position.Y)) + ydraw);
+            e.Graphics.DrawImage(AI_bitmap, (AI_position.X) + xdraw, (maze.height * cellsize - (AI_position.Y) + ydraw));
             drawing = false;
         }
 
@@ -185,12 +188,17 @@ namespace MazeUI
             tickrunning = true;
             xdraw -= (int)Math.Ceiling((cursorposition.X - centre.X) / 100f);
             ydraw -= (int)Math.Ceiling((cursorposition.Y - centre.Y) / 100f);
+            RedrawMaze();
+            tickrunning = false;
+        }
+
+        private void RedrawMaze()
+        {
             pictureBox1.Invoke((MethodInvoker)delegate
             {
                 // Running on the UI thread
-                pictureBox1.Refresh();
+                pictureBox1.Invalidate();
             });
-            tickrunning = false;
         }
 
         private void pictureBox1_MouseUp(object sender, MouseEventArgs e)
@@ -208,14 +216,13 @@ namespace MazeUI
         {
             xdraw = 0;
             ydraw = 0;
-            maze = new Maze(Width / 20, Height / 20, 0);
+            maze = new Maze((Width / 10), (Height / 10), new Random().Next()); //-1 accounts for borders
             maze.GenerateMaze();
             centre = new Point(Width / 2, Height / 2);
 
             mazebitmap = new Bitmap(maze.width * cellsize, (maze.height + 1) * cellsize);
             GenerateMaze();
 
-            AI_position = new PointF(0,0);
             stopAI = true;
             AI_movespeed = originalspeed;
             StartAI();

@@ -60,6 +60,7 @@ namespace MazeMover
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.BackgroundColor = ConsoleColor.Black;
                 Console.Clear();
+                Console.CursorVisible = false;
 
                 maze.Draw();
                 solvingmaze = maze;
