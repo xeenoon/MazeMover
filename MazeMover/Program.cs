@@ -36,7 +36,7 @@ namespace MazeMover
             ConsoleColor.Yellow,
         };
         static List<ConsoleColor> chosenColors = new List<ConsoleColor>();
-        static float AI_movespeed = 200;
+        static float AI_movespeed = 50;
         static bool unsolvablemaze = false;
         static System.Timers.Timer incAIspeed = new System.Timers.Timer();
 

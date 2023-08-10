@@ -20,8 +20,9 @@ namespace MazeUI
         Bitmap AI_bitmap;
 
         PointF AI_position = new PointF(0,0);
+        int ailocation = 0;
 
-        const float originalspeed = 50;
+        const float originalspeed = 20;
         float AI_movespeed = originalspeed;
         static System.Timers.Timer incAIspeed = new System.Timers.Timer();
 
@@ -31,7 +32,7 @@ namespace MazeUI
             maze = new Maze((Width / 10), (Height / 10), new Random().Next()); //-1 accounts for borders
             maze.GenerateMaze();
             centre = new Point(Width / 2, Height / 2);
-            GenerateMaze();
+            DrawMaze();
 
             AI_bitmap = new Bitmap((int)(cellsize), (int)(cellsize));
             Graphics g = Graphics.FromImage(AI_bitmap);
@@ -40,7 +41,7 @@ namespace MazeUI
             StartAI();
         }
 
-        private void GenerateMaze()
+        private void DrawMaze()
         {
             mazebitmap = new Bitmap(maze.width * cellsize, (maze.height + 2) * cellsize);
             Graphics g = Graphics.FromImage(mazebitmap);
@@ -61,9 +62,10 @@ namespace MazeUI
 
         bool stopAI;
         bool airunning = false;
+        AI ai;
         void StartAI()
         {
-            AI ai = new AI(0, maze.Copy());
+            ai = new AI(0, maze.Copy());
             Task.Factory.StartNew(() =>
             {
                 while (airunning)
@@ -104,6 +106,7 @@ namespace MazeUI
                     //AI movement
                     int oldposition = ai.position;
                     ai.Move();
+                    ailocation = ai.position;
                     MoveAI(ai.position, oldposition);
                     if (ai.position == maze.mazeendidx)
                     {
@@ -155,11 +158,44 @@ namespace MazeUI
             //AI_movespeed *= 0.99f;
         }
         bool drawing = false;
-        bool mazechanged = true;
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
         {
-            e.Graphics.DrawImage(mazebitmap, xdraw, ydraw);
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.Default;
+
+            Bitmap drawingbitmap = (Bitmap)mazebitmap.Clone();
+
+            if (showingsolution)
+            {
+                solutionsquares.Clear();
+                maze.SolveMaze(ailocation, Direction.None, ref solutionsquares);
+                solutionsquares.Remove(maze.mazeendidx);
+                Graphics g = Graphics.FromImage(drawingbitmap);
+                Brush b = new Pen(Color.Green).Brush;
+                foreach (var idx in solutionsquares)
+                {
+                    g.FillRectangle(b, (idx % maze.width) * cellsize, (maze.height - (idx / maze.width)) * cellsize, cellsize, cellsize);
+                }
+            }
+            else if (showingerror)
+            {
+                List<int> errorsquares = new List<int>();
+                maze.SolveMaze(ai.position, Direction.None, squareclicklocation, ref errorsquares);
+
+                Graphics g = Graphics.FromImage(drawingbitmap);
+                Brush b = new Pen(Color.Red).Brush;
+                foreach (var idx in errorsquares)
+                {
+                    g.FillRectangle(b, (idx % maze.width) * cellsize, (maze.height - (idx / maze.width)) * cellsize, cellsize, cellsize);
+                }
+            }
+
+            e.Graphics.DrawImage(drawingbitmap, xdraw, ydraw);
             e.Graphics.DrawImage(AI_bitmap, (AI_position.X) + xdraw, (maze.height * cellsize - (AI_position.Y) + ydraw));
+            e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            if (squareclicklocation != -1)
+            {
+                e.Graphics.FillEllipse(new Pen(Color.DarkBlue).Brush, (squareclicklocation % maze.width) * cellsize + xdraw + cellsize * 0.1f, (maze.height - (squareclicklocation / maze.width)) * cellsize + ydraw + cellsize * 0.1f, cellsize * 0.8f, cellsize * 0.8f);
+            }
             drawing = false;
         }
 
@@ -221,11 +257,59 @@ namespace MazeUI
             centre = new Point(Width / 2, Height / 2);
 
             mazebitmap = new Bitmap(maze.width * cellsize, (maze.height + 1) * cellsize);
-            GenerateMaze();
+            DrawMaze();
 
             stopAI = true;
             AI_movespeed = originalspeed;
             StartAI();
+        }
+        List<int> solutionsquares = new List<int>();
+        bool showingsolution = false;
+        bool showingerror = false;
+        int squareclicklocation = -1;
+        int selectedwall = -1;
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+            showingerror = false;
+            Point mouselocation = pictureBox1.PointToClient(Cursor.Position);
+            squareclicklocation = 0;
+            squareclicklocation += (mouselocation.X + xdraw) / cellsize;
+            squareclicklocation += maze.width * (maze.height - ((mouselocation.Y + ydraw) / cellsize));
+
+            //Show solution to the puzzle
+            if (showingsolution)
+            {
+                if (maze.GetCell(squareclicklocation) == true) //Did we select an empty space
+                {
+                    maze.claimedcells[squareclicklocation] = false;
+                    maze.claimedcells[selectedwall] = true; //Swap the walls
+                    if (maze.SolveMaze(ai.position, Direction.None))
+                    {
+                        ai.ChangeMaze(selectedwall, squareclicklocation, maze.Copy());
+                        DrawMaze();
+                    }
+                    else
+                    {
+
+                        //undo the change
+                        maze.claimedcells[squareclicklocation] = true;
+                        maze.claimedcells[selectedwall] = false;
+
+                        //Show the user their mistake
+                        showingerror = true;
+                    }
+                }
+                //Clicking on another wall should just reset it
+                selectedwall = -1;
+                showingsolution = false;
+            }
+            else if (maze.GetCell(squareclicklocation) == false) //Did we select a wall
+            {
+                selectedwall = squareclicklocation;
+                showingsolution = true;
+            }
+            Refresh();
         }
     }
 }

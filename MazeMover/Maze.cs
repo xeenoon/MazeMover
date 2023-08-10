@@ -285,7 +285,7 @@ namespace MazeMover
             foreach (var match in matching)
             {
                 ++recursions;
-                if (SolveMaze(cellposition, match, ref result)) //Move to that square
+                if (SolveMaze(cellposition, match, destination, ref result)) //Move to that square
                 {
                     //Highlight this square
                     result.Add(cellposition);
